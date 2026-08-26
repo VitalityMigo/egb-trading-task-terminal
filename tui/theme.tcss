@@ -70,10 +70,38 @@ HeaderBar {
     scrollbar-corner-color: $bg-panel;
 }
 
-DataTable > .datatable--header {
+/* Cause réelle des "bandes" : le CSS intégré de Textual applique par défaut
+   `DataTable:focus { background-tint: $foreground 5%; }`, qui éclaircit TOUT
+   le fond du tableau (~#141414 au lieu de $bg-panel #0a0a0a) dès qu'il a le
+   focus — pas la ligne sous le curseur (qui a son propre fond peint par
+   dessus, donc épargnée), mais toutes les autres. D'où l'impression de
+   bandes autour d'une ligne "normale". Neutralisé ici : fond strictement
+   uniforme sur tout le tableau, focus ou non. */
+DataTable:focus {
+    background-tint: $foreground 0%;
+}
+
+/* Deuxième source de "bandes", distincte de background-tint ci-dessus : le
+   CSS intégré de Textual applique aussi un vrai zébrage une-ligne-sur-deux
+   (`.datatable--even-row { background: $surface-lighten-1 50%; }`, et une
+   variante encore différente en mode sombre via `:dark`). Neutralisé ici
+   pour les deux variantes : fond strictement identique à $bg-panel sur
+   toutes les lignes, paires ou impaires. */
+DataTable > .datatable--even-row,
+DataTable:dark > .datatable--even-row {
+    background: $bg-panel;
+}
+
+DataTable > .datatable--header,
+DataTable:focus > .datatable--header {
     background: $bg-main;
     color: $fg-header;
     text-style: bold;
+    /* Même cause que DataTable:focus plus haut : Textual retinte aussi
+       spécifiquement l'en-tête (background-tint: $foreground 5%) quand le
+       tableau a le focus — neutralisé pour un en-tête parfaitement uniforme
+       lui aussi. */
+    background-tint: $foreground 0%;
 }
 
 DataTable > .datatable--cursor,
@@ -143,6 +171,13 @@ ModalScreen {
 
 .modal-box {
     width: 64;
+    /* Vertical (DEFAULT_CSS de Textual) est "height: 1fr" par défaut, donc
+       s'étire tout seul sur toute la hauteur disponible de l'écran même
+       centré via ModalScreen { align: center middle }. Sans ce héight:auto
+       explicite, toute modale se retrouve avec une grande zone vide en bas
+       — particulièrement visible/gênant pour une modale voulue "petite et
+       discrète" comme TaskDetailModal. */
+    height: auto;
     background: $bg-panel;
     border: solid $border-color;
     padding: 1 2;
@@ -172,6 +207,51 @@ ModalScreen {
 
 .modal-buttons Button {
     margin-left: 1;
+}
+
+/* ---- modale de détail (TaskDetailModal, clic/Entrée sur une tâche) ----
+   Plus petite/discrète qu'un formulaire complet : boîte plus étroite,
+   lignes d'info compactes, boutons réduits au minimum (pas de gros bloc
+   coloré primary/error — juste une couleur de texte, comme le reste de
+   l'interface). */
+.modal-box.-detail {
+    width: 46;
+    padding: 1 2;
+}
+
+.detail-line {
+    color: $fg-secondary;
+    height: 1;
+}
+
+.modal-buttons.-compact {
+    height: 1;
+    margin-top: 1;
+}
+
+.modal-buttons.-compact Button {
+    min-width: 8;
+    width: auto;
+    height: 1;
+    border: none;
+    background: $bg-panel;
+    color: $fg-secondary;
+    text-style: none;
+    margin-left: 1;
+}
+
+.modal-buttons.-compact Button:hover {
+    background: $bg-panel;
+    color: $fg-primary;
+    text-style: underline;
+}
+
+.modal-buttons.-compact Button.-done-btn {
+    color: $fg-done;
+}
+
+.modal-buttons.-compact Button.-delete-btn {
+    color: $fg-urgent;
 }
 
 Input.-invalid {

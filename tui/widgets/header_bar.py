@@ -133,12 +133,12 @@ class HeaderBar(Static):
             text.append(" Tout", style=box_style)
         text.append("   ")
 
-        # Tant que "Tout" est coché, le navigateur ne pilote plus la table :
-        # on l'assourdit pour que ce soit visuellement clair, sans le
-        # désactiver (décocher doit retrouver exactement la même position).
-        dim = self.show_all
-        mode_color = _FG_MUTED if dim else _FG_HEADER
-        label_color = _FG_MUTED if dim else _FG_PRIMARY
+        # Couleurs pleines en permanence (mode JOUR/SEMAINE en cyan, date/
+        # période en ambre) — même quand "Tout" est coché. Cocher "Tout" ne
+        # change plus l'apparence du navigateur ; décocher retrouve de toute
+        # façon exactement la même position (nav_mode/nav_anchor inchangés).
+        mode_color = _FG_HEADER
+        label_color = _FG_PRIMARY
         arrow_color = _FG_MUTED
 
         mode_label, period_label = self._nav_labels(width)

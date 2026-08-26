@@ -41,9 +41,17 @@ import auction_service  # noqa: E402
 import task_service  # noqa: E402
 from constants import STATUS_DONE, STATUS_URGENT  # noqa: E402
 from tui.screens.auction_form import AuctionFormModal  # noqa: E402
-from tui.screens.auctions import AUCTION_COLUMNS, build_auction_row  # noqa: E402
-from tui.screens.confirm import DeleteAuctionModal, DeleteScopeModal, RowActionModal  # noqa: E402
-from tui.screens.dashboard import TASK_COLUMNS, build_task_row  # noqa: E402
+from tui.screens.auctions import (  # noqa: E402
+    AUCTION_COLUMNS,
+    NOTE_COLUMN_WIDTH as AUCTION_NOTE_WIDTH,
+    build_auction_row,
+)
+from tui.screens.confirm import DeleteAuctionModal, DeleteScopeModal, TaskDetailModal  # noqa: E402
+from tui.screens.dashboard import (  # noqa: E402
+    NOTE_COLUMN_WIDTH as TASK_NOTE_WIDTH,
+    TASK_COLUMNS,
+    build_task_row,
+)
 from tui.screens.help import HelpModal  # noqa: E402
 from tui.screens.task_form import TaskFormModal  # noqa: E402
 from tui.widgets.command_bar import CommandBar  # noqa: E402
@@ -51,13 +59,15 @@ from tui.widgets.header_bar import HeaderBar  # noqa: E402
 
 # Fenêtre utilisée par la case "Tout" (bandeau) côté Tâches — voir la note
 # dans DeskApp._refresh_tasks. Nombre de lignes de chaque ligne du tableau
-# (Tâches et Adjudications) : 2 = un léger espacement vertical entre lignes
-# (Textual n'a pas de padding vertical natif sur DataTable, cell_padding
-# n'agissant qu'horizontalement — un add_row(height=2) avec le contenu aligné
-# en haut de la cellule produit le même effet visuel proprement).
+# (Tâches et Adjudications) : la grille d'un terminal ne connaît que des
+# lignes entières — DataTable.add_row(height=N) ne peut donc offrir qu'un
+# espacement "serré" (1, aucune ligne ajoutée) ou "large" (2, une ligne vide
+# entière insérée) ; rien d'intermédiaire n'est possible (cell_padding ne
+# joue que sur l'axe horizontal). 1 est le choix retenu : dense et lisible,
+# dans l'esprit d'un vrai terminal Bloomberg.
 ALL_WINDOW_PAST_DAYS = 90
 ALL_WINDOW_FUTURE_DAYS = 365
-ROW_HEIGHT = 2
+ROW_HEIGHT = 1
 
 
 class MainTable(DataTable):
@@ -171,7 +181,13 @@ class DeskApp(App):
         self._task_occurrences = occurrences
 
         table.clear(columns=True)
-        table.add_columns(*TASK_COLUMNS)
+        # Toutes les colonnes s'auto-dimensionnent sur leur contenu, sauf
+        # Note qui est plafonnée (add_column width=...) : une note longue ne
+        # doit jamais pousser "Tâche" hors de l'écran (le texte y est déjà
+        # tronqué avec une ellipse par build_task_row, voir dashboard.py).
+        for label in TASK_COLUMNS[:-1]:
+            table.add_column(label)
+        table.add_column(TASK_COLUMNS[-1], width=TASK_NOTE_WIDTH)
         for i, occ in enumerate(occurrences, start=1):
             table.add_row(*build_task_row(i, occ), height=ROW_HEIGHT)
 
@@ -188,7 +204,9 @@ class DeskApp(App):
         self._auction_items = auctions
 
         table.clear(columns=True)
-        table.add_columns(*AUCTION_COLUMNS)
+        for label in AUCTION_COLUMNS[:-1]:
+            table.add_column(label)
+        table.add_column(AUCTION_COLUMNS[-1], width=AUCTION_NOTE_WIDTH)
         for i, a in enumerate(auctions, start=1):
             table.add_row(*build_auction_row(i, a), height=ROW_HEIGHT)
 
@@ -215,6 +233,11 @@ class DeskApp(App):
         """Tab : bascule le navigateur global entre mode Jour et mode
         Semaine (Tâches et Adjudications partagent le même état)."""
         self.nav_mode = "week" if self.nav_mode == "day" else "day"
+        # Une action de navigation explicite doit toujours se voir : si
+        # "Tout" était coché, la table ignorait nav_mode/nav_anchor et
+        # affichait la même liste complète quoi qu'on bascule/déplace — on le
+        # décoche donc ici (voir aussi _nav_step / action_nav_reset_today).
+        self.show_all[self.current_view] = False
         self.refresh_data()
         self.query_one(CommandBar).clear()
 
@@ -231,6 +254,12 @@ class DeskApp(App):
             self.nav_anchor += timedelta(weeks=direction)
         else:
             self.nav_anchor += timedelta(days=direction)
+        # Voir le commentaire dans action_toggle_period : sans ça, une
+        # flèche pressée alors que "Tout" est coché change bien nav_anchor
+        # (visible dans le libellé du bandeau) mais la table affichée reste
+        # identique, ce qui donnait l'impression que "la flèche ne marche
+        # pas".
+        self.show_all[self.current_view] = False
         self.refresh_data()
 
     def action_toggle_show_all(self) -> None:
@@ -246,6 +275,7 @@ class DeskApp(App):
         """Clic sur le libellé du navigateur (ex. "AUJOURD'HUI") : revient
         sur aujourd'hui sans changer de mode Jour/Semaine."""
         self.nav_anchor = date.today()
+        self.show_all[self.current_view] = False
         self.refresh_data()
 
     def action_focus_command(self) -> None:
@@ -317,15 +347,16 @@ class DeskApp(App):
             )
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        """Entrée sur une ligne : ouvre les actions rapides (tâches) ou
-        directement le formulaire d'édition pré-rempli (adjudications) —
-        amélioration UX par rapport à la v1 (section 5.1 du blueprint)."""
+        """Entrée (ou clic) sur une ligne : ouvre le détail compact (tâches,
+        avec Note éditable directement) ou le formulaire d'édition pré-rempli
+        (adjudications) — amélioration UX par rapport à la v1 (section 5.1 du
+        blueprint)."""
         row = event.cursor_row
         if self.current_view == "tasks":
             if not (0 <= row < len(self._task_occurrences)):
                 return
             occ = self._task_occurrences[row]
-            self.push_screen(RowActionModal(occ.name), lambda action, o=occ: self._on_row_action(o, action))
+            self.push_screen(TaskDetailModal(occ), lambda action, o=occ: self._on_row_action(o, action))
         else:
             if not (0 <= row < len(self._auction_items)):
                 return
@@ -344,6 +375,12 @@ class DeskApp(App):
                 self.push_screen(DeleteScopeModal(occ.name), lambda scope, o=occ: self._delete_task(o, scope))
             else:
                 self._delete_task(occ, "series")
+        else:
+            # Fermeture simple (Échap/Fermer) : la Note a pu être modifiée et
+            # déjà enregistrée par la modale elle-même (TaskDetailModal) — on
+            # rafraîchit quand même pour que la colonne Note affiche tout de
+            # suite la valeur à jour.
+            self.refresh_data()
 
     # ------------------------------------------------------------------
     # Callbacks des modaux
