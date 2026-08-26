@@ -1,0 +1,183 @@
+/* theme.tcss — palette "Bloomberg rétro" (blueprint section 4.1).
+   Ces valeurs hexadécimales sont dupliquées en commentaire dans tui/app.py
+   (styles appliqués aux cellules du DataTable selon le statut) : si tu changes
+   une couleur ici, mets aussi à jour STATUS_COLORS dans tui/app.py. */
+
+$bg-main: #000000;
+$bg-panel: #0a0a0a;
+$bg-selected: #1a1a1a;
+$fg-primary: #FFB000;
+$fg-secondary: #E8E8E8;
+$fg-header: #00C8FF;
+$fg-command: #FFD500;
+$fg-done: #00D26A;
+$fg-urgent: #FF3B3B;
+$fg-muted: #5C5C5C;
+$border-color: #FFB000;
+
+Screen {
+    background: $bg-main;
+    color: $fg-secondary;
+}
+
+/* ---- bandeau du haut : horloge + compteurs ---- */
+HeaderBar {
+    height: 3;
+    background: $bg-main;
+    color: $fg-secondary;
+    border-bottom: solid $border-color;
+    padding: 0 2;
+    content-align: left middle;
+    /* Terminal étroit : couper net plutôt que passer à la ligne — un
+       bandeau sur 2 lignes écraserait la première ligne du tableau. */
+    text-wrap: nowrap;
+    text-overflow: clip;
+}
+
+/* ---- corps : sidebar + table ---- */
+#body {
+    height: 1fr;
+}
+
+#sidebar {
+    width: 20;
+    background: $bg-panel;
+    border-right: solid $border-color;
+    padding: 1 0;
+}
+
+.sidebar-item {
+    padding: 0 2;
+    height: 1;
+    color: $fg-secondary;
+}
+
+.sidebar-item.-active {
+    background: $bg-selected;
+    color: $fg-primary;
+    text-style: bold;
+}
+
+#main-table {
+    background: $bg-panel;
+    color: $fg-secondary;
+    scrollbar-background: $bg-panel;
+    scrollbar-background-hover: $bg-panel;
+    scrollbar-background-active: $bg-panel;
+    scrollbar-color: $border-color;
+    scrollbar-color-hover: $fg-primary;
+    scrollbar-color-active: $fg-primary;
+    scrollbar-corner-color: $bg-panel;
+}
+
+DataTable > .datatable--header {
+    background: $bg-main;
+    color: $fg-header;
+    text-style: bold;
+}
+
+DataTable > .datatable--cursor,
+DataTable:focus > .datatable--cursor {
+    /* Pas de surlignage : même fond que le reste du tableau. Le statut
+       (rouge/vert/blanc) reste la seule source de mise en valeur ; le fond
+       noir uniforme est volontairement conservé pour la ligne sous le
+       curseur aussi. La règle DataTable:focus > .datatable--cursor du CSS
+       intégré de Textual met le texte en gras (variable de thème
+       block-cursor-text-style) ; on la neutralise ici explicitement (même
+       spécificité que la règle à annuler), sinon la ligne sous le curseur
+       ressort plus grasse que les autres malgré cursor_foreground_priority. */
+    background: $bg-panel;
+    text-style: none;
+}
+
+DataTable > .datatable--fixed {
+    background: $bg-main;
+}
+
+/* ---- barre de commande façon <GO> ---- */
+CommandBar {
+    height: 3;
+    border-top: solid $border-color;
+    background: $bg-main;
+    color: $fg-command;
+    padding: 0 1;
+}
+
+CommandBar Input {
+    background: $bg-main;
+    color: $fg-command;
+    border: none;
+}
+
+CommandBar Input:focus {
+    border: none;
+}
+
+/* ---- footer de raccourcis ---- */
+Footer {
+    background: $bg-panel;
+    color: $fg-secondary;
+}
+
+FooterKey {
+    background: $bg-panel;
+    color: $fg-secondary;
+}
+
+FooterKey > .footer-key--key {
+    background: $fg-primary;
+    color: $bg-main;
+    text-style: bold;
+}
+
+FooterKey > .footer-key--description {
+    background: $bg-panel;
+    color: $fg-secondary;
+}
+
+/* ---- modaux (formulaires, confirmations, aide) ---- */
+ModalScreen {
+    align: center middle;
+    background: $bg-main 60%;
+}
+
+.modal-box {
+    width: 64;
+    background: $bg-panel;
+    border: solid $border-color;
+    padding: 1 2;
+}
+
+.modal-title {
+    color: $fg-primary;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.field-label {
+    color: $fg-header;
+    margin-top: 1;
+}
+
+.field-error {
+    color: $fg-urgent;
+    height: 1;
+}
+
+.modal-buttons {
+    margin-top: 1;
+    height: 3;
+    align: right middle;
+}
+
+.modal-buttons Button {
+    margin-left: 1;
+}
+
+Input.-invalid {
+    border: tall $fg-urgent;
+}
+
+Input.-valid {
+    border: tall $border-color;
+}

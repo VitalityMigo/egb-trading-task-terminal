@@ -1,0 +1,11 @@
+# Dépendances minimales — voir README.md pour le détail.
+textual>=0.60
+plyer>=2.1
+
+# Toast natif Windows (Centre de notifications). Ne s'installe que sur
+# Windows (les bindings WinRT ne compilent pas sur Linux/macOS) ; sur les
+# autres OS, notifier.py retombe automatiquement sur plyer.
+win11toast>=0.35 ; sys_platform == "win32"
+
+# Optionnel, uniquement pour le développement (rechargement CSS à chaud) :
+# textual-dev
