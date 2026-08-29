@@ -23,7 +23,7 @@ class CommandBar(Horizontal):
     def compose(self) -> ComposeResult:
         yield Static("> ", id="cmd-prompt")
         yield Input(
-            placeholder="TASK ADD · TASK DONE 3 · AUCTION LIST · WEEK · TODAY · TOMORROW",
+            placeholder="TASK ADD · TASK DONE 3 · AUCTION LIST · WEEK · TODAY · TOMORROW · NOTIF TEST",
             id="cmd-input",
         )
 

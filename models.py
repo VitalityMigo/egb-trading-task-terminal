@@ -23,7 +23,9 @@ def new_id() -> str:
 @dataclass
 class Task:
     name: str
-    time: str  # "HH:MM"
+    # "HH:MM", optionnelle : None si non renseignée à la création (section
+    # "widget d'ajout de tâche" — l'heure n'est plus obligatoire).
+    time: Optional[str] = None
     recurrence: str = RECURRENCE_ONCE
     id: str = field(default_factory=new_id)
     # ONCE -> date précise (YYYY-MM-DD) ; WEEKLY -> jour de semaine 0=lundi..6=dimanche
@@ -67,7 +69,6 @@ class Auction:
     id: str = field(default_factory=new_id)
     time: Optional[str] = None          # "HH:MM"
     type: Optional[str] = None          # "Bills" | "Bond"
-    instrument: Optional[str] = None
     maturity: Optional[str] = None      # YYYY-MM-DD
     volume: Optional[float] = None      # en millions
     nco: Optional[bool] = None
@@ -91,7 +92,13 @@ class Occurrence:
     task_id: str
     name: str
     date: str          # YYYY-MM-DD
-    time: str           # "HH:MM"
+    time: Optional[str]  # "HH:MM", ou None si l'heure n'a pas été renseignée
+    # False si `time` est None : dt ci-dessous porte alors une heure factice
+    # (minuit) qui ne doit servir qu'aux besoins internes insensibles à
+    # l'heure (ex. .weekday()) — jamais au tri ni au calcul d'urgence, qui
+    # passent tous les deux par ce flag (voir task_service.get_occurrences /
+    # compute_status).
+    has_time: bool
     dt: datetime         # date+heure combinées, pour tri et calcul d'urgence
     status: str           # "urgent" | "done" | "neutral"
     is_recurring: bool

@@ -1,10 +1,10 @@
 """
 tui/widgets/header_bar.py — bandeau supérieur : marque, date, horloge vivante,
-compteurs "urgentes / faites" et navigateur jour/semaine (sections 4.3 et 5.1
-du blueprint, redesign navigateur demandé ensuite).
+compteurs "urgentes / à faire aujourd'hui" et navigateur jour/semaine
+(sections 4.3 et 5.1 du blueprint, redesign navigateur demandé ensuite).
 
 Layout (une seule ligne, height: 3, centrée verticalement) :
-  gauche  : marque + date + horloge + compteurs urgent/fait (position
+  gauche  : marque + date + horloge + compteurs urgent/à faire (position
             d'origine, avant l'ajout du navigateur) ;
   droite  : case "Tout" + navigateur (mode JOUR/SEMAINE, flèches ◂ ▸,
             libellé du jour ou de la semaine affichée), repoussé à l'extrême
@@ -48,7 +48,6 @@ _MONTH_FR = [
 _FG_PRIMARY = "#FFB000"
 _FG_HEADER = "#00C8FF"
 _FG_URGENT = "#FF3B3B"
-_FG_DONE = "#00D26A"
 _FG_MUTED = "#5C5C5C"
 
 
@@ -58,7 +57,9 @@ def _clickable(color: str, action: str, bold: bool = False) -> Style:
 
 class HeaderBar(Static):
     urgent_count: reactive[int] = reactive(0)
-    done_count: reactive[int] = reactive(0)
+    # Tâches du jour pas encore faites (urgentes incluses) — d'après
+    # Augustin, plus utile en un coup d'œil que le nombre déjà fait.
+    todo_count: reactive[int] = reactive(0)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -69,9 +70,9 @@ class HeaderBar(Static):
     def on_mount(self) -> None:
         self.set_interval(1.0, self.refresh)
 
-    def set_counts(self, urgent: int, done: int) -> None:
+    def set_counts(self, urgent: int, todo: int) -> None:
         self.urgent_count = urgent
-        self.done_count = done
+        self.todo_count = todo
 
     def set_nav(self, mode: str, anchor: date, show_all: bool = False) -> None:
         self.nav_mode = mode
@@ -98,13 +99,13 @@ class HeaderBar(Static):
         left.append(now.strftime("%H:%M:%S"), style="bold")
         left.append("      ")
         if width < 60:
-            left.append(f"{self.urgent_count}U", style=f"bold {_FG_URGENT}")
+            left.append(f"{self.todo_count}A", style=f"bold {_FG_HEADER}")
             left.append(" · ", style=_FG_MUTED)
-            left.append(f"{self.done_count}F", style=f"bold {_FG_DONE}")
+            left.append(f"{self.urgent_count}U", style=f"bold {_FG_URGENT}")
         else:
-            left.append(f"{self.urgent_count} urgentes", style=f"bold {_FG_URGENT}")
+            left.append(f"{self.todo_count} à faire", style=f"bold {_FG_HEADER}")
             left.append("  ·  ", style=_FG_MUTED)
-            left.append(f"{self.done_count} faites", style=f"bold {_FG_DONE}")
+            left.append(f"{self.urgent_count} urgentes", style=f"bold {_FG_URGENT}")
 
         right = self._format_nav(width)
 
@@ -125,7 +126,7 @@ class HeaderBar(Static):
         cliquable à la souris (voir docstring du module)."""
         text = Text()
 
-        box = "☑" if self.show_all else "☐"
+        box = "[×]" if self.show_all else "[ ]"
         box_color = _FG_PRIMARY if self.show_all else _FG_MUTED
         box_style = _clickable(box_color, "app.toggle_show_all")
         text.append(box, style=box_style)

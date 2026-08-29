@@ -62,6 +62,14 @@ def is_valid_time(value: str) -> bool:
         return False
 
 
+def has_time(value: Optional[str]) -> bool:
+    """Une tâche peut ne pas avoir d'heure (None ou "" — widget d'ajout,
+    l'heure y est optionnelle). Même convention que Auction.time
+    (auction_service.py, déjà optionnelle) : une valeur vide/absente est
+    valide, simplement traitée comme "pas d'heure" plutôt que rejetée."""
+    return bool(value) and is_valid_time(value)
+
+
 def parse_time(value: str) -> dtime:
     if not is_valid_time(value):
         raise TaskServiceError(f"Heure invalide : {value!r} (attendu HH:MM)")
@@ -86,15 +94,23 @@ def occurrence_datetime(occ_date: date, time_str: str) -> datetime:
     return datetime.combine(occ_date, parse_time(time_str))
 
 
-def compute_status(dt: datetime, done: bool, now: Optional[datetime] = None) -> str:
+def compute_status(
+    dt: datetime, done: bool, now: Optional[datetime] = None, has_time: bool = True
+) -> str:
     """Règle de couleur (section 2.1 du blueprint) :
     - "done"    -> vert, si la tâche a été marquée faite (prioritaire sur tout).
     - "urgent"  -> rouge, dès que l'heure prévue est à <=30 min ou déjà passée,
                    et ce indéfiniment tant que la tâche n'est pas faite.
     - "neutral" -> sinon.
+
+    has_time=False (tâche sans heure renseignée) désactive la règle "urgent" :
+    sans heure prévue, il n'y a rien par rapport à quoi être en retard — la
+    tâche reste "neutral" jusqu'à être marquée faite.
     """
     if done:
         return STATUS_DONE
+    if not has_time:
+        return STATUS_NEUTRAL
     now = now or datetime.now()
     if now >= dt - timedelta(minutes=URGENCY_WINDOW_MINUTES):
         return STATUS_URGENT
@@ -187,7 +203,7 @@ def _validate_recurrence(
 
 def add_task(
     name: str,
-    time: str,
+    time: Optional[str],
     recurrence: str,
     recurrence_date: Optional[str] = None,
     recurrence_weekday: Optional[int] = None,
@@ -199,7 +215,10 @@ def add_task(
 ) -> Task:
     if name not in TASK_CATALOG:
         raise TaskServiceError(f"Nom de tâche hors catalogue : {name!r}")
-    if not is_valid_time(time):
+    # L'heure est optionnelle (None/"" -> pas d'heure) : seule une valeur non
+    # vide doit respecter le format HH:MM, même convention que Auction.time.
+    time = time or None
+    if time is not None and not is_valid_time(time):
         raise TaskServiceError(f"Heure invalide : {time!r} (attendu HH:MM)")
     _validate_recurrence(recurrence, recurrence_date, recurrence_weekday)
 
@@ -229,13 +248,14 @@ def update_task(task_id: str, **fields) -> Task:
         if t.id == task_id:
             name = fields.get("name", t.name)
             time_ = fields.get("time", t.time)
+            time_ = time_ or None
             recurrence = fields.get("recurrence", t.recurrence)
             recurrence_date = fields.get("recurrence_date", t.recurrence_date)
             recurrence_weekday = fields.get("recurrence_weekday", t.recurrence_weekday)
 
             if name not in TASK_CATALOG:
                 raise TaskServiceError(f"Nom de tâche hors catalogue : {name!r}")
-            if not is_valid_time(time_):
+            if time_ is not None and not is_valid_time(time_):
                 raise TaskServiceError(f"Heure invalide : {time_!r} (attendu HH:MM)")
             _validate_recurrence(recurrence, recurrence_date, recurrence_weekday)
 
@@ -262,6 +282,22 @@ def mark_done(task_id: str, occurrence_date: date) -> Task:
             ds = occurrence_date.strftime(DATE_FMT)
             if ds not in t.done_dates:
                 t.done_dates.append(ds)
+            tasks[idx] = t
+            _save_tasks(tasks)
+            return t
+    raise TaskServiceError(f"Tâche introuvable : {task_id!r}")
+
+
+def mark_undone(task_id: str, occurrence_date: date) -> Task:
+    """Inverse de mark_done : retire occurrence_date de done_dates si elle y
+    est (pas d'erreur si elle n'y était pas — idempotent, même logique de
+    tolérance que mark_done)."""
+    tasks = _load_tasks()
+    for idx, t in enumerate(tasks):
+        if t.id == task_id:
+            ds = occurrence_date.strftime(DATE_FMT)
+            if ds in t.done_dates:
+                t.done_dates.remove(ds)
             tasks[idx] = t
             _save_tasks(tasks)
             return t
@@ -345,15 +381,21 @@ def get_occurrences(
             ds = d.strftime(DATE_FMT)
             if ds in excluded:
                 continue
-            dt = occurrence_datetime(d, t.time)
+            t_has_time = has_time(t.time)
+            # Sans heure : dt porte une heure factice (minuit), jamais utilisée
+            # pour trier ni pour l'urgence (voir tri et compute_status
+            # ci-dessous) — seulement là où le type datetime est requis pour
+            # des besoins insensibles à l'heure (ex. TaskDetailModal, .weekday()).
+            dt = occurrence_datetime(d, t.time) if t_has_time else datetime.combine(d, dtime.min)
             occurrences.append(
                 Occurrence(
                     task_id=t.id,
                     name=t.name,
                     date=ds,
                     time=t.time,
+                    has_time=t_has_time,
                     dt=dt,
-                    status=compute_status(dt, ds in done, now),
+                    status=compute_status(dt, ds in done, now, has_time=t_has_time),
                     is_recurring=t.recurrence != RECURRENCE_ONCE,
                     source=t.source,
                     details=dict(t.details),
@@ -362,7 +404,12 @@ def get_occurrences(
                 )
             )
 
-    occurrences.sort(key=lambda o: o.dt)
+    # Tri par date, puis par heure au sein d'une même journée — les
+    # occurrences sans heure passent en dernier ce jour-là (flag has_time
+    # d'abord, "" trie de toute façon après toute heure "HH:MM" valide au
+    # besoin) plutôt que par o.dt (qui porterait sinon la fausse heure minuit
+    # et les ferait remonter en tête, à l'opposé de ce qui est demandé).
+    occurrences.sort(key=lambda o: (o.date, 0 if o.has_time else 1, o.time or ""))
     return occurrences
 
 

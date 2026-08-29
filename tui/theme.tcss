@@ -27,7 +27,14 @@ HeaderBar {
     color: $fg-secondary;
     border-bottom: solid $border-color;
     padding: 0 2;
-    content-align: left middle;
+    /* border-bottom consomme 1 des 3 lignes de la hauteur totale : il ne
+       reste que 2 lignes de contenu, un nombre pair pour un texte tenant
+       sur 1 seule ligne — "middle" ne peut alors que retomber sur le haut
+       (aucune ligne pile au centre de 2). "bottom" pousse le texte contre
+       la bordure du bas à la place : 1 ligne vide au-dessus, texte juste
+       avant le filet — visuellement centré dans le bandeau plutôt que
+       collé en haut. */
+    content-align: left bottom;
     /* Terminal étroit : couper net plutôt que passer à la ligne — un
        bandeau sur 2 lignes écraserait la première ligne du tableau. */
     text-wrap: nowrap;
@@ -58,13 +65,52 @@ HeaderBar {
     text-style: bold;
 }
 
+/* Round 18 : filtre "par adjudication", propre à la vue Tâches — vit dans
+   la sidebar existante (déjà 20 colonnes fixes, empilement vertical) plutôt
+   que dans le bandeau du haut (rendu Rich sur une seule ligne, pas de vrais
+   widgets interactifs) : n'ajoute rien à un layout existant, juste du
+   contenu de plus dans un conteneur qui existait déjà, masqué (Select.display)
+   côté vue Adjudications. Largeur fixe de la sidebar = déjà insensible à la
+   largeur du terminal, contrairement au bandeau du haut qui doit abréger son
+   contenu en dessous d'un certain seuil — c'est ce qui rend ce filtre
+   utilisable même dans une fenêtre étroite sans traitement supplémentaire. */
+.sidebar-filter-label {
+    padding: 0 2;
+    height: 1;
+}
+
+#sidebar Select {
+    width: 1fr;
+    margin: 0 1;
+}
+
+#sidebar SelectCurrent,
+#sidebar Select:focus > SelectCurrent {
+    border: none;
+    background: $bg-selected;
+    color: $fg-secondary;
+    padding: 0 1;
+}
+
+#sidebar SelectOverlay {
+    border: solid $border-color;
+    background: $bg-panel;
+}
+
 #main-table {
     background: $bg-panel;
     color: $fg-secondary;
     scrollbar-background: $bg-panel;
     scrollbar-background-hover: $bg-panel;
     scrollbar-background-active: $bg-panel;
-    scrollbar-color: $border-color;
+    /* Barre horizontale plus discrète : déjà à l'épaisseur minimale (1
+       ligne, valeur par défaut de Textual — impossible d'aller plus fin
+       dans une grille de terminal), donc "plus fine" ne peut passer que par
+       moins de contraste au repos : une teinte adoucie (35% d'opacité)
+       plutôt que l'ambre plein, qui ressortait comme une barre pleine et
+       épaisse sur les vues avec peu de lignes. Toujours amber franc au
+       survol/glissement pour rester repérable quand on l'utilise. */
+    scrollbar-color: $border-color 35%;
     scrollbar-color-hover: $fg-primary;
     scrollbar-color-active: $fg-primary;
     scrollbar-corner-color: $bg-panel;
@@ -209,13 +255,34 @@ ModalScreen {
     margin-left: 1;
 }
 
-/* ---- modale de détail (TaskDetailModal, clic/Entrée sur une tâche) ----
-   Plus petite/discrète qu'un formulaire complet : boîte plus étroite,
-   lignes d'info compactes, boutons réduits au minimum (pas de gros bloc
-   coloré primary/error — juste une couleur de texte, comme le reste de
-   l'interface). */
+/* ---- modales "plates" (TaskDetailModal, clic/Entrée sur une tâche ;
+   TaskFormModal, ajout de tâche ; AuctionFormModal, ajout/clic sur une
+   adjudication — round 14) ----
+   Plus discrètes qu'un formulaire par défaut (.modal-box seul, utilisé par
+   les confirmations) : lignes d'info compactes, boutons réduits au minimum
+   (pas de gros bloc coloré primary/error — juste une couleur de texte,
+   comme le reste de l'interface). -form et -form-wide sont identiques à
+   -detail, juste plus larges (plus de champs qu'une simple fiche) —
+   -form-wide un peu plus que -form : le formulaire d'adjudication porte
+   encore plus de champs que celui d'une tâche.
+
+   Un seul cadre visible dans toute la modale : celui de .modal-box (noir,
+   bordure ambre). Les champs internes (Input, Select, Checkbox) sont tous
+   stylés sans bordure propre juste en dessous — sinon chacun dessine sa
+   propre boîte par défaut (bordure Textual standard) et ça donne l'effet
+   "boîtes dans la boîte" qui posait problème. */
 .modal-box.-detail {
-    width: 46;
+    width: 50;
+    padding: 1 2;
+}
+
+.modal-box.-form {
+    width: 56;
+    padding: 1 2;
+}
+
+.modal-box.-form-wide {
+    width: 64;
     padding: 1 2;
 }
 
@@ -224,9 +291,125 @@ ModalScreen {
     height: 1;
 }
 
+/* Round 18 : ligne discrète (indicateur de provenance d'une tâche dans
+   TaskDetailModal) — même famille que .detail-line, juste atténuée pour ne
+   pas rivaliser visuellement avec la ligne date/heure/détails juste
+   au-dessus. */
+.detail-line.-muted {
+    color: $fg-muted;
+}
+
+.modal-box.-detail Input,
+.modal-box.-form Input,
+.modal-box.-form-wide Input {
+    border: none;
+    background: $bg-selected;
+    color: $fg-secondary;
+    padding: 0 1;
+    height: 1;
+}
+
+.modal-box.-detail Input:focus,
+.modal-box.-form Input:focus,
+.modal-box.-form-wide Input:focus {
+    border: none;
+    background: $bg-selected;
+}
+
+.modal-box.-detail SelectCurrent,
+.modal-box.-detail Select:focus > SelectCurrent,
+.modal-box.-form SelectCurrent,
+.modal-box.-form Select:focus > SelectCurrent,
+.modal-box.-form-wide SelectCurrent,
+.modal-box.-form-wide Select:focus > SelectCurrent {
+    border: none;
+    background: $bg-selected;
+    color: $fg-secondary;
+    padding: 0 1;
+}
+
+.modal-box.-detail SelectOverlay,
+.modal-box.-form SelectOverlay,
+.modal-box.-form-wide SelectOverlay {
+    border: solid $border-color;
+    background: $bg-panel;
+}
+
+.modal-box.-detail Checkbox,
+.modal-box.-form Checkbox,
+.modal-box.-form-wide Checkbox {
+    border: none;
+    background: $bg-selected;
+    color: $fg-secondary;
+    padding: 0 1;
+}
+
+.modal-box.-detail Checkbox:focus,
+.modal-box.-form Checkbox:focus,
+.modal-box.-form-wide Checkbox:focus {
+    border: none;
+    background: $bg-selected;
+}
+
+.detail-recurrence {
+    height: 1;
+    margin-top: 0;
+}
+
+.detail-recurrence > #f-recurrence {
+    width: 1fr;
+}
+
+.detail-recurrence > #f-weekday {
+    width: 14;
+    margin-left: 1;
+}
+
+.modal-box.-detail Button.-link-btn,
+.modal-box.-form Button.-link-btn,
+.modal-box.-form-wide Button.-link-btn {
+    border: none;
+    background: $bg-panel;
+    color: $fg-muted;
+    height: 1;
+    min-width: 0;
+    width: auto;
+    text-style: none;
+    margin-top: 0;
+    padding: 0;
+}
+
+.modal-box.-detail Button.-link-btn:hover,
+.modal-box.-form Button.-link-btn:hover,
+.modal-box.-form-wide Button.-link-btn:hover {
+    background: $bg-panel;
+    color: $fg-urgent;
+    text-style: underline;
+}
+
 .modal-buttons.-compact {
     height: 1;
     margin-top: 1;
+}
+
+/* -split (AuctionFormModal, round 15) : un bouton auxiliaire ("Vérifier les
+   tâches liées") callé à l'extrême gauche du cadre, Annuler/Valider restant
+   groupés à droite comme d'habitude. .modal-buttons de base pose déjà
+   `align: right middle` (confirmations classiques) ; -split le neutralise en
+   alignant le container à gauche et confie l'écartement à un Static -spacer
+   (width: 1fr) placé entre le bouton de gauche et le groupe de droite, qui
+   absorbe tout l'espace restant. Sélecteur à 3 classes pour primer sans
+   ambiguïté sur .modal-buttons (align: right middle) et .modal-buttons.
+   -compact (ne redéfinit pas align). Fonctionne aussi sans bouton de gauche
+   (mode ajout : le spacer capte alors tout l'espace avant Annuler/Valider,
+   résultat identique à un simple alignement à droite). */
+.modal-buttons.-compact.-split {
+    align: left middle;
+}
+
+.modal-buttons.-compact.-split > .-spacer {
+    width: 1fr;
+    height: 1;
 }
 
 .modal-buttons.-compact Button {
@@ -246,12 +429,20 @@ ModalScreen {
     text-style: underline;
 }
 
+.modal-buttons.-compact Button.-delete-btn {
+    color: $fg-urgent;
+}
+
 .modal-buttons.-compact Button.-done-btn {
     color: $fg-done;
 }
 
-.modal-buttons.-compact Button.-delete-btn {
-    color: $fg-urgent;
+/* Action principale d'un formulaire (ex. "Valider") : même sobriété que le
+   reste (texte seul, pas de bloc plein comme l'ancien variant="primary"),
+   juste la couleur ambre du thème pour rester repérable comme action par
+   défaut. */
+.modal-buttons.-compact Button.-primary-btn {
+    color: $fg-primary;
 }
 
 Input.-invalid {

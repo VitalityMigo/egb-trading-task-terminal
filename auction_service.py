@@ -1,9 +1,15 @@
 """
 auction_service.py — CRUD des adjudications, création hebdomadaire en lot,
-pagination, et génération automatique des tâches liées (section 2.3 du
-blueprint). Toute la logique de date passe par business_days.py et
-task_service.py — rien n'est recalculé ici en dehors des règles propres aux
-adjudications (offsets +1h/+2h/J-1/J-2 par rapport à l'adjudication).
+pagination, et génération automatique des tâches liées. Toute la logique de
+date passe par business_days.py et task_service.py — rien n'est recalculé
+ici en dehors des règles propres aux adjudications.
+
+Mapping de génération (round 20, remplace en totalité l'ancienne section 2.3
+du blueprint — 5 règles génériques) : arbre de décision par pays et par type
+d'adjudication (Bills/Bond), fourni explicitement par Augustin, voir
+_expected_task_specs() ci-dessous. Le champ NCO de l'adjudication n'influence
+plus aucune règle (round 20, demande explicite) — reste un champ purement
+informatif.
 """
 
 from __future__ import annotations
@@ -15,9 +21,9 @@ import business_days
 import task_service
 from constants import (
     COUNTRIES,
+    COUNTRY_CODES,
     AUCTION_TYPES,
     AUCTIONS_FILE,
-    AUTO_TASK_DEFAULT_TIME,
     RECURRENCE_ONCE,
 )
 from models import Auction, Task
@@ -66,6 +72,29 @@ def get_auction(auction_id: str) -> Optional[Auction]:
         if a.id == auction_id:
             return a
     return None
+
+
+def get_upcoming_auctions() -> list[Auction]:
+    """Adjudications dont la date est aujourd'hui ou plus tard — jamais dans
+    le passé. Round 18 : peuple le filtre "par adjudication" de la vue
+    Tâches (tui/app.py) — une adjudication déjà passée n'a plus vocation à
+    servir de filtre (comparaison lexicale de chaînes "YYYY-MM-DD", valide
+    car équivalente à l'ordre chronologique, déjà le pattern utilisé
+    ailleurs dans ce module)."""
+    today = date.today().strftime(DATE_FMT)
+    return [a for a in list_auctions_sorted() if a.date >= today]
+
+
+def format_auction_short_label(auction: Auction) -> str:
+    """Étiquette compacte "<code pays> <jour>/<mois>" (sans année), ex.
+    "DE 15/09" — round 18, réutilisée à la fois par le filtre "par
+    adjudication" de la vue Tâches et par l'indicateur de provenance d'une
+    tâche (TaskDetailModal). `constants.COUNTRY_CODES` est la même table que
+    celle utilisée depuis le round 11 pour la colonne "Détails" de la vue
+    Tâches — même convention de code, un seul endroit où elle est définie."""
+    code = COUNTRY_CODES.get(auction.country, auction.country)
+    _, month, day = auction.date.split("-")
+    return f"{code} {day}/{month}"
 
 
 def paginate(items: list, page: int, page_size: int = DEFAULT_PAGE_SIZE) -> tuple[list, int]:
@@ -122,22 +151,171 @@ def _clean_optional(value):
 
 
 # ---------------------------------------------------------------------------
-# Génération automatique des tâches (section 2.3 du blueprint)
+# Génération automatique des tâches — round 20, mapping par pays × type
+# (Bills/Bond) redéfini en totalité par Augustin, remplace l'ancienne
+# section 2.3 du blueprint (5 règles génériques). Le champ NCO n'intervient
+# plus jamais dans ces règles (demande explicite d'Augustin) — il reste un
+# champ purement informatif de l'adjudication.
 # ---------------------------------------------------------------------------
 
-def generate_tasks_for_auction(auction: Auction) -> tuple[list[Task], list[str]]:
-    """Applique les 5 règles de génération et retourne (tâches créées, avertissements).
-    Un avertissement apparaît quand une règle nécessitant l'heure de l'adjudication
-    (règles 2 et 4) ne peut pas s'appliquer faute d'heure renseignée."""
-    created: list[Task] = []
+# Décalage (jours ouvrés, T+n) + heure de la tâche "NCO Historisation", par
+# pays et par type d'adjudication. Un pays absent de cette table (Allemagne,
+# ou tout pays hors des 6 listés explicitement par Augustin — Cas 7 "autre
+# pays") n'a simplement pas de NCO Historisation générée. France a d'abord
+# été formulée par Augustin sans "ouvré" (lendemain calendaire) au round 20,
+# puis explicitement corrigée en "lendemain ouvré" au round 21 — alignée ici
+# sur Italie/Portugal (T+1 jour ouvré, 17:30), plus de cas particulier.
+_NCO_HISTORISATION_BUSINESS_DAYS: dict[str, dict[str, tuple[int, str]]] = {
+    "France": {"Bills": (1, "17:30"), "Bond": (1, "17:30")},
+    "Italie": {"Bills": (1, "17:30"), "Bond": (1, "17:30")},
+    "Espagne": {"Bills": (2, "15:30"), "Bond": (2, "15:30")},
+    "Belgique": {"Bills": (2, "15:30"), "Bond": (3, "15:30")},
+    "Portugal": {"Bills": (1, "17:30"), "Bond": (1, "17:30")},
+}
+
+
+def _friday_before(d: date) -> date:
+    """Premier vendredi strictement avant `d` (jour calendaire, sans lien
+    avec business_days — vendredi est toujours un jour ouvré). Utilisé pour
+    "NCO Estimate" (France / Bond) : "le vendredi avant à 11:30 (donc si
+    jeudi 7, vendredi 1)" — toujours le vendredi de la semaine précédente,
+    y compris si `d` est lui-même un vendredi."""
+    cur = d - timedelta(days=1)
+    while cur.weekday() != 4:
+        cur -= timedelta(days=1)
+    return cur
+
+
+def _nco_historisation_rule(country: str, auction_type: Optional[str]) -> Optional[tuple[int, str]]:
+    """Retourne (n, heure) — décalage en jours ouvrés (T+n) — pour la tâche
+    "NCO Historisation" de ce pays/type, ou None si ce pays n'en génère pas
+    (Allemagne, Cas 7 "autre pays"). Round 21 : la France, qui utilisait un
+    décalage calendaire au round 20, a été alignée sur les autres pays (jour
+    ouvré, table _NCO_HISTORISATION_BUSINESS_DAYS ci-dessus), confirmé par
+    Augustin."""
+    by_type = _NCO_HISTORISATION_BUSINESS_DAYS.get(country)
+    if by_type is None:
+        return None
+    return by_type.get(auction_type)
+
+
+def _expected_task_specs(auction: Auction) -> tuple[list[tuple[str, date, str]], list[str]]:
+    """Calcule le mapping de tâches attendu (round 20, arbre de décision par
+    pays × Bills/Bond fourni par Augustin) sans aucun effet de bord —
+    retourne les (nom, date, heure) attendus pour cette adjudication, plus
+    les avertissements associés (règles calées sur l'heure de l'adjudication,
+    qui ne s'appliquent pas si elle est absente). Factorisé pour être
+    partagé entre generate_tasks_for_auction (création initiale,
+    inconditionnelle) et ensure_tasks_for_auction (réparation : ne crée que
+    ce qui manque, round 14)."""
+    specs: list[tuple[str, date, str]] = []
     warnings: list[str] = []
 
     a_date = task_service.parse_date(auction.date)
     has_time = bool(auction.time) and task_service.is_valid_time(auction.time)
     a_datetime = task_service.occurrence_datetime(a_date, auction.time) if has_time else None
+    country = auction.country
+    is_bills = auction.type == "Bills"
+    is_bond = auction.type == "Bond"
+
+    # Universel (tous pays, Bills et Bond) : 4h après l'adjudication ->
+    # Bond Historisation.
+    if a_datetime:
+        dt = a_datetime + timedelta(hours=4)
+        specs.append(("Bond Historisation", dt.date(), dt.strftime(TIME_FMT)))
+    else:
+        warnings.append(
+            "Bond Historisation non générée : l'adjudication n'a pas d'heure renseignée."
+        )
+
+    # Tous pays, Bills uniquement : le jour même à 8:30 -> Pre-Bills Report.
+    if is_bills:
+        specs.append(("Pre-Bills Report", a_date, "08:30"))
+
+    # France / Bond uniquement : NCO Estimate (vendredi précédent, 11:30) et
+    # NCO Calculation (30 min après l'adjudication).
+    if country == "France" and is_bond:
+        specs.append(("NCO Estimate", _friday_before(a_date), "11:30"))
+        if a_datetime:
+            dtc = a_datetime + timedelta(minutes=30)
+            specs.append(("NCO Calculation", dtc.date(), dtc.strftime(TIME_FMT)))
+        else:
+            warnings.append(
+                "NCO Calculation non générée : l'adjudication n'a pas d'heure renseignée."
+            )
+
+    # Italie / Bond uniquement : Italian Fees, même décalage
+    # que Bond Historisation (4h après l'adjudication).
+    if country == "Italie" and is_bond:
+        if a_datetime:
+            dtf = a_datetime + timedelta(hours=4)
+            specs.append(("Italian Fees", dtf.date(), dtf.strftime(TIME_FMT)))
+        else:
+            warnings.append(
+                "Italian Fees non générée : l'adjudication n'a pas d'heure renseignée."
+            )
+
+    # NCO Historisation : dépend du pays (et, pour la Belgique, du type) —
+    # absente pour l'Allemagne et tout pays hors de la table (Cas 7).
+    nco_rule = _nco_historisation_rule(country, auction.type)
+    if nco_rule is not None:
+        n, when_time = nco_rule
+        d = business_days.add_business_days(a_date, n)
+        specs.append(("NCO Historisation", d, when_time))
+
+    return specs, warnings
+
+
+def generate_tasks_for_auction(auction: Auction) -> tuple[list[Task], list[str]]:
+    """Applique le mapping de génération (round 20, par pays × type) et crée
+    toutes les tâches correspondantes sans condition. Utilisé uniquement à
+    la création d'une adjudication (add_auction) ou lors d'une régénération complète
+    (update_auction(..., regenerate_tasks=True), qui supprime d'abord toutes
+    les tâches liées existantes) : dans les deux cas, aucune tâche liée ne
+    peut déjà exister au moment de l'appel. Pour réparer un lien sans tout
+    recréer, voir ensure_tasks_for_auction ci-dessous."""
+    specs, warnings = _expected_task_specs(auction)
+    details = {"pays": auction.country, "type": auction.type}
+    created = [
+        task_service.add_task(
+            name=name,
+            time=when_time,
+            recurrence=RECURRENCE_ONCE,
+            recurrence_date=when.strftime(DATE_FMT),
+            source="auto",
+            auction_id=auction.id,
+            details=dict(details),
+        )
+        for name, when, when_time in specs
+    ]
+    return created, warnings
+
+
+def ensure_tasks_for_auction(auction: Auction) -> tuple[list[Task], list[str]]:
+    """Vérifie que toutes les tâches attendues pour cette adjudication (mapping
+    de génération round 20, par pays × type) sont bien présentes, et
+    ne crée que celles qui manquent — contrairement à generate_tasks_for_auction
+    (inconditionnel) ou à la régénération complète (update_auction(...,
+    regenerate_tasks=True), qui supprime puis recrée tout). Une tâche liée
+    déjà existante n'est jamais touchée : sa note, son statut fait/pas fait,
+    ou une récurrence modifiée à la main restent intacts.
+
+    "Existe déjà" est déterminé par le nom de la tâche parmi les tâches liées
+    à cette adjudication (task_service.list_tasks_for_auction), pas par la
+    date : si une tâche auto-générée a été repassée en récurrente (édition
+    manuelle depuis TaskDetailModal), sa date d'origine (recurrence_date)
+    devient None — comparer sur la date la ferait passer à tort pour absente
+    et créerait un doublon. Comparer sur le nom seul suffit ici : les 5
+    règles ne peuvent jamais produire deux fois le même nom pour une seule
+    adjudication."""
+    specs, warnings = _expected_task_specs(auction)
+    existing_names = {t.name for t in task_service.list_tasks_for_auction(auction.id)}
     details = {"pays": auction.country, "type": auction.type}
 
-    def _add(name: str, when, when_time: str) -> None:
+    created: list[Task] = []
+    for name, when, when_time in specs:
+        if name in existing_names:
+            continue
         created.append(
             task_service.add_task(
                 name=name,
@@ -149,39 +327,6 @@ def generate_tasks_for_auction(auction: Auction) -> tuple[list[Task], list[str]]
                 details=dict(details),
             )
         )
-
-    # 1. J-2 jours ouvrés avant l'adjudication -> Bond Definition
-    d1 = business_days.add_business_days(a_date, -2)
-    _add("Bond Definition", d1, AUTO_TASK_DEFAULT_TIME)
-
-    # 2. 1h après l'heure de l'adjudication -> Bond Historisation
-    if a_datetime:
-        dt2 = a_datetime + timedelta(hours=1)
-        _add("Bond Historisation", dt2.date(), dt2.strftime(TIME_FMT))
-    else:
-        warnings.append(
-            "Bond Historisation non générée : l'adjudication n'a pas d'heure renseignée."
-        )
-
-    # 3. J-1 jour ouvré avant, si type = Bills -> Pre-Auction Bills Report
-    if auction.type == "Bills":
-        d3 = business_days.add_business_days(a_date, -1)
-        _add("Pre-Auction Bills Report", d3, AUTO_TASK_DEFAULT_TIME)
-
-    # 4. 2h après, si NCO = Oui et type = Bond -> NCO Estimate
-    if auction.nco and auction.type == "Bond":
-        if a_datetime:
-            dt4 = a_datetime + timedelta(hours=2)
-            _add("NCO Estimate", dt4.date(), dt4.strftime(TIME_FMT))
-        else:
-            warnings.append(
-                "NCO Estimate non générée : l'adjudication n'a pas d'heure renseignée."
-            )
-
-    # 5. Le jour même, si pays = Italie -> Italian Fees
-    if auction.country == "Italie":
-        _add("Italian Fees", a_date, AUTO_TASK_DEFAULT_TIME)
-
     return created, warnings
 
 
@@ -194,7 +339,6 @@ def add_auction(
     date: str,
     time: Optional[str] = None,
     type: Optional[str] = None,
-    instrument: Optional[str] = None,
     maturity: Optional[str] = None,
     volume: Optional[float] = None,
     nco: Optional[bool] = None,
@@ -202,7 +346,6 @@ def add_auction(
 ) -> tuple[Auction, list[str]]:
     time = _clean_optional(time)
     type = _clean_optional(type)
-    instrument = _clean_optional(instrument)
     maturity = _clean_optional(maturity)
     volume = _clean_optional(volume)
     note = _clean_optional(note)
@@ -214,7 +357,6 @@ def add_auction(
         date=date,
         time=time,
         type=type,
-        instrument=instrument,
         maturity=maturity,
         volume=float(volume) if volume is not None else None,
         nco=bool(nco) if nco is not None else None,
@@ -252,7 +394,6 @@ def update_auction(auction_id: str, fields: dict, regenerate_tasks: bool = False
         date = fields.get("date", a.date)
         time = _clean_optional(fields.get("time", a.time))
         type = _clean_optional(fields.get("type", a.type))
-        instrument = _clean_optional(fields.get("instrument", a.instrument))
         maturity = _clean_optional(fields.get("maturity", a.maturity))
         volume = _clean_optional(fields.get("volume", a.volume))
         nco = fields.get("nco", a.nco)
@@ -264,7 +405,6 @@ def update_auction(auction_id: str, fields: dict, regenerate_tasks: bool = False
         a.date = date
         a.time = time
         a.type = type
-        a.instrument = instrument
         a.maturity = maturity
         a.volume = float(volume) if volume is not None else None
         a.nco = bool(nco) if nco is not None else None

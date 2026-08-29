@@ -25,7 +25,7 @@ affiche toujours l'état à jour. Pendant qu'une session reste ouverte, la vue
 se rafraîchit aussi automatiquement (horloge chaque seconde, données toutes
 les 30s).
 
-Le bandeau garde la marque/date/horloge/compteurs urgent-fait à gauche ; le
+Le bandeau garde la marque/date/horloge/compteurs à faire-urgent à gauche ; le
 navigateur Jour / Semaine est à l'extrême droite ("JOUR ◂ AUJOURD'HUI ▸"). Il
 est **global** : la même position (un jour donné, ou la semaine calendaire qui
 le contient) s'applique à la fois à la vue Tâches et à la vue Adjudications —
@@ -46,26 +46,47 @@ enregistré.
 
 ## Notifications
 
-Le suivi des notifications tourne dans un **process séparé**, indépendant de
-l'interface (un crash de l'un n'affecte pas l'autre) :
+Depuis le round 22, le suivi des notifications tourne **dans le même
+process** que l'interface (plus de daemon séparé à lancer à côté) : dès que
+le dashboard est ouvert, un contrôle tourne en tâche de fond toutes les
+2 minutes (`constants.NOTIFY_CHECK_INTERVAL_SECONDS`), plus un contrôle
+immédiat à chaque lancement. Trois types de notifications :
 
-```powershell
-python notify_daemon.py
-```
+- **par tâche** : dès qu'une tâche entre en zone d'urgence (30 min avant
+  l'heure prévue, non faite) ;
+- **récapitulatif général**, deux fois par jour (8h45 et 15h00,
+  `constants.GENERAL_NOTIFICATION_TIMES`) : nombre de tâches du jour pas
+  encore faites ("X tâches restantes aujourd'hui") ;
+- **test**, à la demande — `F10`, ou commande `NOTIF TEST` dans la barre de
+  commande — pratique pour vérifier que les notifications système
+  fonctionnent sur le poste, sans attendre qu'une vraie tâche devienne
+  urgente.
 
-ou en double-cliquant sur `start_notify_daemon.bat`. Il vérifie toutes les
-30 secondes si une tâche vient d'entrer en zone d'urgence (30 min avant
-l'heure prévue, non faite) et déclenche une notification système :
+Mécanisme d'envoi (`notifier.py`) :
 
-- toast natif du Centre de notifications Windows (`win11toast`) en priorité ;
+- toast natif du Centre de notifications Windows (`win11toast`) en priorité,
+  avec une icône ronde (`assets/notify_icon.png`) et un affichage plus long,
+  pour se rapprocher visuellement d'un toast d'application moderne (dans
+  l'esprit d'un toast Teams, sans reproduire son identité visuelle) ;
+- sur macOS, `terminal-notifier` en priorité si installé
+  (`brew install terminal-notifier`) — contourne un défaut connu de l'API
+  macOS utilisée par `plyer` (`NSUserNotification`, dépréciée par Apple) :
+  celle-ci demande bien l'autorisation système au premier envoi (attribuée à
+  "Python Launcher"), mais reste ensuite silencieuse sur les envois
+  suivants. Sans `terminal-notifier`, repli sur `plyer` (peut fonctionner par
+  intermittence sur macOS pour cette raison — nécessite en plus la
+  dépendance optionnelle `pyobjus`, non installée par défaut) ;
 - repli automatique sur `plyer` (cross-platform) si `win11toast` est
-  indisponible — permet de tester le même code sur Linux/macOS pendant le dev ;
-- en tout dernier recours, affichage dans la console (aucune des deux libs
-  disponible).
+  indisponible, ou en dernier recours sur macOS — permet de tester le même
+  code sur Linux/macOS pendant le dev ;
+- en tout dernier recours, affichage dans la console (aucun des mécanismes
+  ci-dessus disponible).
 
-Chaque tâche n'est notifiée qu'une fois par jour (déduplication persistée
-dans `data/notified.json`, réinitialisée automatiquement au changement de
-jour). `Ctrl+C` pour arrêter le daemon.
+Chaque tâche/récapitulatif n'est notifié qu'une fois par jour (déduplication
+persistée dans `data/notified.json`, réinitialisée automatiquement au
+changement de jour). Chaque notification réellement envoyée est aussi
+journalisée (`data/notifications_log.json`) et consultable dans l'app via la
+troisième page **Log** (`F7`), qui affiche celles reçues **aujourd'hui**.
 
 ## Structure du projet
 
@@ -73,35 +94,38 @@ jour). `Ctrl+C` pour arrêter le daemon.
 desk_cli/
 ├── constants.py, models.py, storage.py, business_days.py   # fondations
 ├── task_service.py, auction_service.py                     # logique métier
-├── notifier.py, notify_daemon.py, start_notify_daemon.bat   # notifications
+├── notifier.py, notification_service.py                    # notifications
+├── assets/notify_icon.png                                   # icône toast Windows
 ├── tui/
 │   ├── app.py            # interface (Textual)
 │   ├── theme.tcss          # palette ambre/noir façon Bloomberg
-│   ├── screens/            # formulaires modaux, confirmations, aide
+│   ├── screens/            # formulaires modaux, confirmations, aide, log
 │   └── widgets/             # bandeau horloge, barre de commande
-├── data/                    # tasks.json, auctions.json, notified.json (créés au premier lancement)
+├── data/                    # tasks.json, auctions.json, notified.json, notifications_log.json (créés au premier lancement)
 └── requirements.txt
 ```
 
 Toute la logique métier (dates, urgence, génération de tâches depuis une
-adjudication) vit dans `task_service.py` / `auction_service.py` /
-`business_days.py` — `tui/` n'en duplique aucune ligne.
+adjudication, notifications) vit dans `task_service.py` / `auction_service.py`
+/ `business_days.py` / `notification_service.py` — `tui/` n'en duplique
+aucune ligne.
 
 ## Raccourcis
 
 | Touche | Action |
 |---|---|
 | F1 | Aide / légende des couleurs |
-| F2 / F3 | Vue Tâches / Adjudications |
+| F2 / F3 / F7 | Vue Tâches / Adjudications / Log (notifications du jour) |
 | F4 | Ajouter (ou modifier si une adjudication est sélectionnée) |
 | F5 | Marquer fait |
 | F6 | Supprimer |
-| Tab (ou clic sur JOUR/SEMAINE) | Bascule le navigateur Jour / Semaine (bandeau, global aux 2 vues) |
+| Tab (ou clic sur JOUR/SEMAINE) | Bascule le navigateur Jour / Semaine (bandeau, global Tâches/Adjudications) |
 | ◂ / ▸ (flèches, PgUp/PgDn, ou clic) | Jour ou semaine précédent(e) / suivant(e) |
 | Clic sur la date du navigateur | Revient à aujourd'hui |
 | Clic sur ☐ Tout (bandeau) | Affiche toute la liste de la vue courante, sans filtre de date |
 | Entrée | Actions rapides sur la ligne sélectionnée |
-| / | Focus la barre de commande (`TASK ADD`, `TASK DONE 3`, `AUCTION LIST`, `WEEK`, ...) |
+| / | Focus la barre de commande (`TASK ADD`, `TASK DONE 3`, `AUCTION LIST`, `WEEK`, `NOTIF TEST`, ...) |
+| F10 | Envoie une notification de test (équivalent à `NOTIF TEST`, sans passer par la barre de commande) |
 | Échap | Ferme un modal / vide la barre de commande |
 | F9 | Quitter |
 
@@ -110,6 +134,7 @@ adjudication) vit dans `task_service.py` / `auction_service.py` /
 Tâches : N°, Heure, Tâche, Détails, Statut, **Note**.
 Adjudications : N°, Pays, Date, Heure, Type, Instrument, Maturité, Volume (M),
 NCO, **Note**.
+Log : N°, Heure, Type (Urgent / Général / Test), Titre, Message.
 
 La Note est un champ libre optionnel, disponible dans les deux formulaires
 d'ajout/édition.

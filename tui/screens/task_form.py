@@ -2,7 +2,16 @@
 tui/screens/task_form.py — formulaire modal d'ajout de tâche (F4 en vue Tâches,
 ou commande "TASK ADD"). Validation inline de l'heure (HH:MM) avant même la
 soumission : bordure rouge dès que la saisie est invalide (section 5.4 du
-blueprint) — pas seulement après appui sur Entrée.
+blueprint) — pas seulement après appui sur Entrée. L'heure elle-même est
+optionnelle (voir _validate_time) : une tâche peut être ajoutée sans heure,
+elle s'affichera avec un "-" et se placera en fin de liste du jour (tri géré
+par task_service.get_occurrences).
+
+Style volontairement plat, même famille que TaskDetailModal (tui/screens/
+confirm.py, .modal-box.-detail dans theme.tcss) : un seul cadre visible (celui
+de la modale), champs sans bordure propre, boutons compacts sans gros bloc de
+couleur. .modal-box.-form est identique à .modal-box.-detail, juste un peu
+plus large (davantage de champs à loger).
 
 Retourne (via dismiss) soit None (annulé), soit un dict prêt à être passé en
 kwargs à task_service.add_task(...).
@@ -27,7 +36,7 @@ class TaskFormModal(ModalScreen[Optional[dict]]):
 
     def compose(self) -> ComposeResult:
         catalog = task_service.get_catalog()
-        with Vertical(classes="modal-box"):
+        with Vertical(classes="modal-box -form"):
             yield Static("AJOUTER UNE TÂCHE", classes="modal-title")
 
             yield Static("Nom *", classes="field-label")
@@ -55,17 +64,20 @@ class TaskFormModal(ModalScreen[Optional[dict]]):
             yield Static("Jour de la semaine *", classes="field-label", id="f-weekday-label")
             yield Select([(w, i) for i, w in enumerate(WEEKDAY_LABELS)], value=0, allow_blank=False, id="f-weekday")
 
-            yield Static("Heure * (HH:MM)", classes="field-label")
-            yield Input(placeholder="16:30", id="f-time")
+            # Optionnelle : pas d'astérisque, contrairement aux champs
+            # ci-dessus. Une tâche sans heure s'affiche avec un "-" et se
+            # place en dernier dans la liste du jour concerné.
+            yield Static("Heure (HH:MM)", classes="field-label")
+            yield Input(placeholder="optionnel — ex. 16:30", id="f-time")
 
             yield Static("Note", classes="field-label")
             yield Input(placeholder="optionnel", id="f-note")
 
             yield Static("", classes="field-error", id="f-error")
 
-            with Horizontal(classes="modal-buttons"):
+            with Horizontal(classes="modal-buttons -compact"):
                 yield Button("Annuler", id="btn-cancel")
-                yield Button("Valider", variant="primary", id="btn-submit")
+                yield Button("Valider", classes="-primary-btn", id="btn-submit")
 
     def on_mount(self) -> None:
         self._sync_recurrence_fields()
@@ -86,16 +98,18 @@ class TaskFormModal(ModalScreen[Optional[dict]]):
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "f-time":
-            self._validate_time(event.value, show_error=False)
+            self._validate_time(event.value)
 
-    def _validate_time(self, value: str, show_error: bool = True) -> bool:
+    def _validate_time(self, value: str) -> bool:
+        """Heure optionnelle : "" est valide (pas d'heure renseignée), une
+        valeur non vide doit respecter le format HH:MM. Même convention que
+        le champ Heure du formulaire d'adjudication (tui/screens/auction_form.py)."""
         time_input = self.query_one("#f-time", Input)
         error = self.query_one("#f-error", Static)
         if value == "":
             time_input.remove_class("-invalid", "-valid")
-            if show_error:
-                error.update("L'heure est obligatoire.")
-            return False
+            error.update("")
+            return True
         if task_service.is_valid_time(value):
             time_input.remove_class("-invalid")
             time_input.add_class("-valid")
@@ -137,7 +151,7 @@ class TaskFormModal(ModalScreen[Optional[dict]]):
 
         self.dismiss({
             "name": name,
-            "time": time_value,
+            "time": time_value or None,
             "recurrence": recurrence,
             "recurrence_date": recurrence_date,
             "recurrence_weekday": recurrence_weekday,

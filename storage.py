@@ -1,6 +1,8 @@
 """
-storage.py — persistance JSON, partagée par cli.py et tui/app.py (et notify_daemon.py
-pour le fichier de déduplication des notifications).
+storage.py — persistance JSON, partagée par cli.py et tui/app.py (et
+notification_service.py pour les fichiers de déduplication et de journal des
+notifications — round 22, la surveillance tourne désormais dans la TUI elle
+même, plus de process séparé).
 
 Écriture atomique (fichier temporaire + remplacement) pour éviter un JSON à moitié
 écrit si l'app est fermée brutalement pendant une sauvegarde.
