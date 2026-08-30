@@ -1,0 +1,205 @@
+[
+  {
+    "name": "PnL Report",
+    "time": "18:30",
+    "recurrence": "business_daily",
+    "id": "c20cf3dc325c",
+    "recurrence_date": null,
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "manual",
+    "auction_id": null,
+    "details": {},
+    "note": null
+  },
+  {
+    "name": "Risk 16h30",
+    "time": "16:30",
+    "recurrence": "business_daily",
+    "id": "7731ca1d9c7d",
+    "recurrence_date": null,
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "manual",
+    "auction_id": null,
+    "details": {},
+    "note": null
+  },
+  {
+    "name": "Risk 17h30",
+    "time": "17:30",
+    "recurrence": "business_daily",
+    "id": "6946b7b80000",
+    "recurrence_date": null,
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "manual",
+    "auction_id": null,
+    "details": {},
+    "note": null
+  },
+  {
+    "name": "Weekly Macro Recap",
+    "time": "10:00",
+    "recurrence": "weekly",
+    "id": "34619784d5f3",
+    "recurrence_date": null,
+    "recurrence_weekday": 0,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "manual",
+    "auction_id": null,
+    "details": {},
+    "note": null
+  },
+  {
+    "name": "MTS Quotation",
+    "time": "10:30",
+    "recurrence": "business_daily",
+    "id": "15ebfe6beb5c",
+    "recurrence_date": null,
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "manual",
+    "auction_id": null,
+    "details": {},
+    "note": null
+  },
+  {
+    "name": "Bond Historisation",
+    "time": "14:50",
+    "recurrence": "once",
+    "id": "136523b2d3e8",
+    "recurrence_date": "2026-08-31",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "5820e4d5d645",
+    "details": {
+      "pays": "France",
+      "type": "Bills"
+    },
+    "note": null
+  },
+  {
+    "name": "Pre-Bills Report",
+    "time": "08:30",
+    "recurrence": "once",
+    "id": "3e8506493857",
+    "recurrence_date": "2026-08-31",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "5820e4d5d645",
+    "details": {
+      "pays": "France",
+      "type": "Bills"
+    },
+    "note": null
+  },
+  {
+    "name": "NCO Historisation",
+    "time": "17:30",
+    "recurrence": "once",
+    "id": "e54b933253c3",
+    "recurrence_date": "2026-09-01",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "5820e4d5d645",
+    "details": {
+      "pays": "France",
+      "type": "Bills"
+    },
+    "note": null
+  },
+  {
+    "name": "Bond Historisation",
+    "time": "14:50",
+    "recurrence": "once",
+    "id": "fc01b31aa152",
+    "recurrence_date": "2026-09-03",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "b6fa75b780aa",
+    "details": {
+      "pays": "France",
+      "type": "Bond"
+    },
+    "note": null
+  },
+  {
+    "name": "NCO Estimate",
+    "time": "11:30",
+    "recurrence": "once",
+    "id": "807b9d6110d0",
+    "recurrence_date": "2026-08-28",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [
+      "2026-08-28"
+    ],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "b6fa75b780aa",
+    "details": {
+      "pays": "France",
+      "type": "Bond"
+    },
+    "note": null
+  },
+  {
+    "name": "NCO Calculation",
+    "time": "11:20",
+    "recurrence": "once",
+    "id": "0bba96b1305a",
+    "recurrence_date": "2026-09-03",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "b6fa75b780aa",
+    "details": {
+      "pays": "France",
+      "type": "Bond"
+    },
+    "note": null
+  },
+  {
+    "name": "NCO Historisation",
+    "time": "17:30",
+    "recurrence": "once",
+    "id": "8dd41de96195",
+    "recurrence_date": "2026-09-04",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "b6fa75b780aa",
+    "details": {
+      "pays": "France",
+      "type": "Bond"
+    },
+    "note": null
+  }
+]

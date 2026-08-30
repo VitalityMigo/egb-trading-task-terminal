@@ -1,0 +1,24 @@
+[
+  {
+    "country": "France",
+    "date": "2026-08-31",
+    "id": "5820e4d5d645",
+    "time": "10:50",
+    "type": "Bills",
+    "maturity": "2026-11-30",
+    "volume": 2500.0,
+    "nco": true,
+    "note": null
+  },
+  {
+    "country": "France",
+    "date": "2026-09-03",
+    "id": "b6fa75b780aa",
+    "time": "10:50",
+    "type": "Bond",
+    "maturity": "2036-05-25",
+    "volume": 11500.0,
+    "nco": true,
+    "note": null
+  }
+]

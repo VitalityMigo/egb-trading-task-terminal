@@ -21,7 +21,7 @@ TASK_CATALOG: list[str] = [
     "SSA Historisation",
     "Risk 16h30",
     "Risk 17h30",
-    "Swap File",
+    "Swap Report",
     "PnL Report",
     "Volume HREF",
     "MTS Quotation",
