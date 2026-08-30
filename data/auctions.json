@@ -20,5 +20,82 @@
     "volume": 11500.0,
     "nco": true,
     "note": null
+  },
+  {
+    "country": "UE",
+    "date": "2026-08-31",
+    "id": "a7acaf9a75b1",
+    "time": "11:30",
+    "type": "Bond",
+    "maturity": "2031-10-13",
+    "volume": 2500.0,
+    "nco": null,
+    "note": "Ask SSA"
+  },
+  {
+    "country": "Espagne",
+    "date": "2026-09-01",
+    "id": "4258bd749662",
+    "time": "10:30",
+    "type": "Bills",
+    "maturity": "2027-03-05",
+    "volume": null,
+    "nco": true,
+    "note": null
+  },
+  {
+    "country": "Belgique",
+    "date": "2026-09-01",
+    "id": "caf18fc1eb17",
+    "time": "11:30",
+    "type": "Bills",
+    "maturity": "2026-12-10",
+    "volume": 1000.0,
+    "nco": true,
+    "note": null
+  },
+  {
+    "country": "Allemagne",
+    "date": "2026-09-01",
+    "id": "109ddebf0291",
+    "time": "11:30",
+    "type": "Bond",
+    "maturity": "2031-10-08",
+    "volume": 5500.0,
+    "nco": false,
+    "note": null
+  },
+  {
+    "country": "UE",
+    "date": "2026-09-02",
+    "id": "351d7857b168",
+    "time": "12:00",
+    "type": "Bills",
+    "maturity": "2026-12-04",
+    "volume": 1000.0,
+    "nco": null,
+    "note": null
+  },
+  {
+    "country": "Espagne",
+    "date": "2026-09-03",
+    "id": "c327a84677a8",
+    "time": "10:30",
+    "type": "Bond",
+    "maturity": "2029-03-31",
+    "volume": null,
+    "nco": true,
+    "note": null
+  },
+  {
+    "country": "UE",
+    "date": "2026-09-01",
+    "id": "9f7d0029b952",
+    "time": "12:30",
+    "type": "Bills",
+    "maturity": "2026-12-03",
+    "volume": 1500.0,
+    "nco": null,
+    "note": "SSA (ESMTB) - Bloom code : ESZB"
   }
 ]

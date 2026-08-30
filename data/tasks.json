@@ -201,5 +201,302 @@
       "type": "Bond"
     },
     "note": null
+  },
+  {
+    "name": "Swap Report",
+    "time": "18:30",
+    "recurrence": "business_daily",
+    "id": "bf16d033bbd6",
+    "recurrence_date": null,
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "manual",
+    "auction_id": null,
+    "details": {},
+    "note": null
+  },
+  {
+    "name": "SSA Chain Report",
+    "time": "18:00",
+    "recurrence": "once",
+    "id": "e0d972b55b72",
+    "recurrence_date": "2026-08-31",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "manual",
+    "auction_id": null,
+    "details": {},
+    "note": "Ask Evan"
+  },
+  {
+    "name": "Weekly Auction Recap",
+    "time": "18:00",
+    "recurrence": "weekly",
+    "id": "0229f95a041b",
+    "recurrence_date": null,
+    "recurrence_weekday": 4,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "manual",
+    "auction_id": null,
+    "details": {},
+    "note": null
+  },
+  {
+    "name": "Bond Historisation",
+    "time": "15:30",
+    "recurrence": "once",
+    "id": "0df35d94ea7d",
+    "recurrence_date": "2026-08-31",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "a7acaf9a75b1",
+    "details": {
+      "pays": "UE",
+      "type": "Bond"
+    },
+    "note": null
+  },
+  {
+    "name": "Bond Historisation",
+    "time": "14:30",
+    "recurrence": "once",
+    "id": "ec70f851403a",
+    "recurrence_date": "2026-09-01",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "4258bd749662",
+    "details": {
+      "pays": "Espagne",
+      "type": "Bills"
+    },
+    "note": null
+  },
+  {
+    "name": "Pre-Bills Report",
+    "time": "08:30",
+    "recurrence": "once",
+    "id": "483ecf268c2f",
+    "recurrence_date": "2026-09-01",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "4258bd749662",
+    "details": {
+      "pays": "Espagne",
+      "type": "Bills"
+    },
+    "note": null
+  },
+  {
+    "name": "NCO Historisation",
+    "time": "15:30",
+    "recurrence": "once",
+    "id": "6b14798a96a9",
+    "recurrence_date": "2026-09-03",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "4258bd749662",
+    "details": {
+      "pays": "Espagne",
+      "type": "Bills"
+    },
+    "note": null
+  },
+  {
+    "name": "Bond Historisation",
+    "time": "14:30",
+    "recurrence": "once",
+    "id": "826747bbfa14",
+    "recurrence_date": "2026-09-01",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "caf18fc1eb17",
+    "details": {
+      "pays": "Belgique",
+      "type": "Bills"
+    },
+    "note": null
+  },
+  {
+    "name": "Pre-Bills Report",
+    "time": "08:30",
+    "recurrence": "once",
+    "id": "affd4019c0f8",
+    "recurrence_date": "2026-09-01",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "caf18fc1eb17",
+    "details": {
+      "pays": "Belgique",
+      "type": "Bills"
+    },
+    "note": null
+  },
+  {
+    "name": "NCO Historisation",
+    "time": "15:30",
+    "recurrence": "once",
+    "id": "bbc4d9e18cf3",
+    "recurrence_date": "2026-09-03",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "caf18fc1eb17",
+    "details": {
+      "pays": "Belgique",
+      "type": "Bills"
+    },
+    "note": null
+  },
+  {
+    "name": "Bond Historisation",
+    "time": "14:30",
+    "recurrence": "once",
+    "id": "bee5645ec113",
+    "recurrence_date": "2026-09-01",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "109ddebf0291",
+    "details": {
+      "pays": "Allemagne",
+      "type": "Bond"
+    },
+    "note": null
+  },
+  {
+    "name": "Bond Historisation",
+    "time": "16:00",
+    "recurrence": "once",
+    "id": "86fecb5ea0d8",
+    "recurrence_date": "2026-09-02",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "351d7857b168",
+    "details": {
+      "pays": "UE",
+      "type": "Bills"
+    },
+    "note": null
+  },
+  {
+    "name": "Pre-Bills Report",
+    "time": "08:30",
+    "recurrence": "once",
+    "id": "cc00ed6b0304",
+    "recurrence_date": "2026-09-02",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "351d7857b168",
+    "details": {
+      "pays": "UE",
+      "type": "Bills"
+    },
+    "note": null
+  },
+  {
+    "name": "Bond Historisation",
+    "time": "14:30",
+    "recurrence": "once",
+    "id": "f60ecf41a87e",
+    "recurrence_date": "2026-09-03",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "c327a84677a8",
+    "details": {
+      "pays": "Espagne",
+      "type": "Bond"
+    },
+    "note": null
+  },
+  {
+    "name": "NCO Historisation",
+    "time": "15:30",
+    "recurrence": "once",
+    "id": "9b9cfaadbf93",
+    "recurrence_date": "2026-09-07",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "c327a84677a8",
+    "details": {
+      "pays": "Espagne",
+      "type": "Bond"
+    },
+    "note": null
+  },
+  {
+    "name": "Bond Historisation",
+    "time": "16:30",
+    "recurrence": "once",
+    "id": "a99ac1645274",
+    "recurrence_date": "2026-09-01",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "9f7d0029b952",
+    "details": {
+      "pays": "UE",
+      "type": "Bills"
+    },
+    "note": null
+  },
+  {
+    "name": "Pre-Bills Report",
+    "time": "08:30",
+    "recurrence": "once",
+    "id": "a998bd3386ee",
+    "recurrence_date": "2026-09-01",
+    "recurrence_weekday": null,
+    "created_date": "2026-08-30",
+    "done_dates": [],
+    "excluded_dates": [],
+    "source": "auto",
+    "auction_id": "9f7d0029b952",
+    "details": {
+      "pays": "UE",
+      "type": "Bills"
+    },
+    "note": null
   }
 ]
