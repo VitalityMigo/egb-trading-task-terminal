@@ -152,15 +152,28 @@ DataTable:focus > .datatable--header {
 
 DataTable > .datatable--cursor,
 DataTable:focus > .datatable--cursor {
-    /* Pas de surlignage : même fond que le reste du tableau. Le statut
-       (rouge/vert/blanc) reste la seule source de mise en valeur ; le fond
-       noir uniforme est volontairement conservé pour la ligne sous le
-       curseur aussi. La règle DataTable:focus > .datatable--cursor du CSS
-       intégré de Textual met le texte en gras (variable de thème
-       block-cursor-text-style) ; on la neutralise ici explicitement (même
-       spécificité que la règle à annuler), sinon la ligne sous le curseur
-       ressort plus grasse que les autres malgré cursor_foreground_priority. */
-    background: $bg-panel;
+    /* Round 23 (suite) : jusqu'ici pas de surlignage du tout — un choix
+       raisonnable tant que le curseur ne servait qu'en interne (avant la
+       navigation aux flèches du round 23, F5/F6 ne portaient toujours que
+       sur la première ligne, la position du curseur importait peu). Devenu
+       un vrai manque une fois la navigation ligne par ligne utilisable :
+       Augustin signale qu'il ne peut plus repérer sur quelle ligne il se
+       trouve. Fond légèrement éclairci ($bg-selected, #1a1a1a — déjà utilisé
+       ailleurs dans l'app comme fond "sélectionné", ex. sidebar/modales
+       plates) pour un surlignage discret mais visible.
+       Bien distinct de la cause des "bandes" corrigée au round 5 (le
+       background-tint de DataTable:focus, qui éclaircissait TOUTES les
+       lignes sauf le curseur, et un zébrage une-ligne-sur-deux) : ici,
+       exactement l'inverse — une seule ligne, celle du curseur, reçoit un
+       traitement différent ; tout le reste du tableau garde le fond uniforme
+       $bg-panel comme avant. `text-style: none` conservé (la règle intégrée
+       à Textual mettrait sinon le texte en gras via block-cursor-text-style,
+       cause du bug repéré au round 8) — seule la couleur de fond change,
+       jamais le poids du texte ; la couleur du texte (rouge/vert/blanc selon
+       le statut) reste elle aussi intacte grâce à cursor_foreground_priority
+       ="renderable" (tui/app.py), donc la nouvelle surbrillance ne fait
+       jamais concurrence au code couleur du statut. */
+    background: $bg-selected;
     text-style: none;
 }
 

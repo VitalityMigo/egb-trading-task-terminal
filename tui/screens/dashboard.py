@@ -16,7 +16,7 @@ from rich.text import Text
 
 from constants import COUNTRY_CODES, STATUS_DONE, STATUS_NEUTRAL, STATUS_URGENT, TASK_CATALOG
 
-TASK_COLUMNS = ("N°", "Heure", "Tâche", "Détails", "Statut", "Note")
+TASK_COLUMNS = ("N°", "Date", "Heure", "Tâche", "Détails", "Statut", "Note")
 
 # Largeur de contenu (hors cell_padding) donnée à la colonne Note dans
 # tui/app.py (add_column("Note", width=NOTE_COLUMN_WIDTH)). On tronque
@@ -52,15 +52,22 @@ NOTE_COLUMN_WIDTH = 40
 #     réellement affichées à un instant donné.
 #   - "Statut" : seuls 3 libellés possibles (STATUS_LABELS), eux aussi fixes.
 TASK_NAME_COLUMN_WIDTH = max(len(n) for n in TASK_CATALOG)
-N_COLUMN_WIDTH = 3
+N_COLUMN_WIDTH = 1
 TIME_COLUMN_WIDTH = 5
-DETAILS_COLUMN_WIDTH = 18
+DETAILS_COLUMN_WIDTH = 12
+# Round 23 : colonne "Date" ajoutée juste après "N°", pour se repérer plus
+# facilement en mode Semaine ou "Tout" (plusieurs jours affichés à la fois,
+# demande d'Augustin). Format "JJ/MM" sans année — même convention compacte
+# que le reste de l'app (auction_service.format_auction_short_label,
+# header_bar.py) : le bandeau donne déjà l'année/le contexte, pas la peine de
+# la répéter sur chaque ligne. Toujours 5 caractères, comme "Heure" (HH:MM).
+DATE_COLUMN_WIDTH = 5
 
 # Espace supplémentaire (au-delà du cell_padding) ajouté explicitement après
 # "Tâche" : c'est la colonne la plus lue d'un coup d'œil, elle gagne à
 # respirer un peu plus que le reste (contrairement à "Détails", qui elle
 # est resserrée à une largeur fixe).
-_EXTRA_GAP = "   "
+_EXTRA_GAP = " "
 
 # Doit rester synchronisé avec les couleurs de tui/theme.tcss.
 STATUS_COLORS = {
@@ -79,12 +86,21 @@ STATUS_COLUMN_WIDTH = max(len(label) for label in STATUS_LABELS.values())
 
 TASK_COLUMN_WIDTHS = {
     "N°": N_COLUMN_WIDTH,
+    "Date": DATE_COLUMN_WIDTH,
     "Heure": TIME_COLUMN_WIDTH,
     "Tâche": TASK_NAME_COLUMN_WIDTH + len(_EXTRA_GAP),
     "Détails": DETAILS_COLUMN_WIDTH,
     "Statut": STATUS_COLUMN_WIDTH,
     "Note": NOTE_COLUMN_WIDTH,
 }
+
+
+def format_date_short(date_str: str) -> str:
+    """"YYYY-MM-DD" -> "JJ/MM" (sans année) — voir DATE_COLUMN_WIDTH. Repli
+    "-" si la date est absente/mal formée plutôt qu'un crash d'affichage."""
+    if not date_str or len(date_str) < 10:
+        return "-"
+    return f"{date_str[8:10]}/{date_str[5:7]}"
 
 
 def format_details(occurrence, use_country_code: bool = False) -> str:
@@ -122,6 +138,7 @@ def build_task_row(index: int, occurrence) -> tuple[Text, ...]:
     details_text = _crop(format_details(occurrence, use_country_code=True), DETAILS_COLUMN_WIDTH)
     return (
         Text(str(index), style=style),
+        Text(format_date_short(occurrence.date), style=style),
         Text(occurrence.time or "-", style=style),
         Text(occurrence.name + _EXTRA_GAP, style=style),
         Text(details_text, style=style),

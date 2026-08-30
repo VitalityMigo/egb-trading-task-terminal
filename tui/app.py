@@ -39,6 +39,7 @@ from textual.widgets import DataTable, Footer, Select, Static  # noqa: E402
 
 import auction_service  # noqa: E402
 import notification_service  # noqa: E402
+import notifier  # noqa: E402
 import task_service  # noqa: E402
 from constants import NOTIFY_CHECK_INTERVAL_SECONDS, STATUS_DONE, STATUS_URGENT  # noqa: E402
 from tui.screens.auction_form import AuctionFormModal  # noqa: E402
@@ -53,10 +54,8 @@ from tui.screens.dashboard import (  # noqa: E402
     TASK_COLUMNS,
     build_task_row,
 )
-from tui.screens.help import HelpModal  # noqa: E402
 from tui.screens.log import LOG_COLUMN_WIDTHS, LOG_COLUMNS, build_log_row  # noqa: E402
 from tui.screens.task_form import TaskFormModal  # noqa: E402
-from tui.widgets.command_bar import CommandBar  # noqa: E402
 from tui.widgets.header_bar import HeaderBar  # noqa: E402
 
 # Fenêtre utilisée par la case "Tout" (bandeau) côté Tâches — voir la note
@@ -106,29 +105,30 @@ class DeskApp(App):
     CSS_PATH = "theme.tcss"
     TITLE = "DESK CLI"
 
+    # Round 23 : réorganisation demandée par Augustin — "Aide" (F1) et la
+    # barre de commande ("/") retirées (jugées inutiles à l'usage : tout ce
+    # qu'elles apportaient a un équivalent clavier direct ailleurs — F4 pour
+    # ajouter, F5/F6 pour fait/suppr., Tab pour la semaine, F8 pour tester
+    # les notifs). F1-F9 renumérotés en conséquence ; F7 "Actualiser" est
+    # nouveau (voir action_refresh_now). tui/screens/help.py et
+    # tui/widgets/command_bar.py restent sur le disque (code mort, non
+    # importés) plutôt que supprimés — pas de raison de toucher à plus de
+    # fichiers que nécessaire pour ce changement.
     BINDINGS = [
-        Binding("f1", "show_help", "Aide"),
-        Binding("f2", "view_tasks", "Tâches"),
-        Binding("f3", "view_auctions", "Adjudications"),
+        Binding("f1", "view_tasks", "Tâches"),
+        Binding("f2", "view_auctions", "Adjudications"),
+        Binding("f3", "view_log", "Log"),
         Binding("f4", "add_item", "Ajouter"),
         Binding("f5", "mark_done", "Fait"),
         Binding("f6", "delete_item", "Suppr"),
-        Binding("f7", "view_log", "Log"),
+        Binding("f7", "refresh_now", "Actualiser"),
+        Binding("f8", "notif_test", "Notif"),
+        Binding("f9", "quit", "Quitter"),
         Binding("tab", "toggle_period", "Jour/Semaine", show=False),
         Binding("pagedown", "next_page", "Suiv.", show=False),
         Binding("pageup", "prev_page", "Préc.", show=False),
         Binding("left", "prev_page", "Préc.", show=False),
         Binding("right", "next_page", "Suiv.", show=False),
-        Binding("slash", "focus_command", "Commande", key_display="/"),
-        Binding("escape", "clear_command", "Annuler", show=False),
-        Binding("f9", "quit", "Quitter"),
-        # Round 22 (suite) : raccourci direct pour "NOTIF TEST", en plus de
-        # la commande — signalé par Augustin que "/" ne focussait pas la
-        # barre de commande sur son poste (clavier/terminal non identifié
-        # avec certitude à distance). F10 déclenche le même envoi sans
-        # passer par la barre de commande, donc fonctionne même si "/" reste
-        # capricieux chez lui.
-        Binding("f10", "notif_test", "Test notif"),
     ]
 
     def __init__(self) -> None:
@@ -187,7 +187,6 @@ class DeskApp(App):
                 cell_padding=4,
                 cursor_foreground_priority="renderable",
             )
-        yield CommandBar(id="command-bar")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -200,23 +199,47 @@ class DeskApp(App):
         self.set_interval(NOTIFY_CHECK_INTERVAL_SECONDS, self._check_notifications)
         self.refresh_data()
         self._check_notifications()
+        # Round 23 : par défaut Textual donne le focus au premier widget
+        # focusable du DOM (le Select "Filtre adju." de la sidebar) et non au
+        # tableau — sans ça, les flèches haut/bas (navigation ligne par ligne
+        # demandée par Augustin) n'auraient rien à faire puisque le tableau ne
+        # serait jamais focusé tant qu'on n'a pas cliqué dessus à la souris.
+        self.query_one("#main-table", DataTable).focus()
 
     # ------------------------------------------------------------------
     # Rafraîchissement des données affichées
     # ------------------------------------------------------------------
 
-    def refresh_data(self) -> None:
+    def refresh_data(self, *, reset_cursor: bool = False) -> None:
+        """Round 23 : `table.clear()` (dans _refresh_tasks/_refresh_auctions/
+        _refresh_log ci-dessous) ramène toujours le curseur du DataTable à la
+        ligne 0 — et refresh_data() est appelé après CHAQUE action (F5, F6,
+        ajout, ...) ainsi que par le timer périodique (30s). Sans rien faire
+        de plus, ça voulait dire que F5/F6 ne portaient jamais que sur la
+        première ligne en pratique, quoi qu'on ait navigué avec les flèches
+        haut/bas juste avant (déjà géré nativement par Textual sur le
+        DataTable, aucun code à écrire pour ça) — signalé par Augustin.
+        Fix : on mémorise la ligne courante avant de reconstruire le tableau,
+        et on la restaure après (bornée au nouveau nombre de lignes) — sauf
+        quand `reset_cursor=True`, utilisé par les actions qui changent
+        vraiment ce qui est affiché (bascule de vue, changement de jour/
+        semaine, case "Tout") : là, revenir en haut de la nouvelle liste a
+        plus de sens que de garder un index qui ne correspond plus à rien de
+        précis."""
         # Le filtre "par adjudication" doit être résolu avant de construire
         # le tableau (il peut s'auto-réinitialiser si l'adjudication choisie
         # vient de passer, voir _refresh_task_auction_filter).
         self._refresh_task_auction_filter()
         table = self.query_one("#main-table", DataTable)
+        keep_row = 0 if reset_cursor else (table.cursor_row or 0)
         if self.current_view == "tasks":
             self._refresh_tasks(table)
         elif self.current_view == "auctions":
             self._refresh_auctions(table)
         else:
             self._refresh_log(table)
+        if table.row_count:
+            table.move_cursor(row=min(keep_row, table.row_count - 1))
         self._refresh_header_counts()
         self._refresh_sidebar()
         self.query_one(HeaderBar).set_nav(
@@ -386,15 +409,26 @@ class DeskApp(App):
 
     def action_view_tasks(self) -> None:
         self.current_view = "tasks"
-        self.refresh_data()
+        self.refresh_data(reset_cursor=True)
+        self._focus_table()
 
     def action_view_auctions(self) -> None:
         self.current_view = "auctions"
-        self.refresh_data()
+        self.refresh_data(reset_cursor=True)
+        self._focus_table()
 
     def action_view_log(self) -> None:
         self.current_view = "log"
-        self.refresh_data()
+        self.refresh_data(reset_cursor=True)
+        self._focus_table()
+
+    def _focus_table(self) -> None:
+        """Round 23 : redonne le focus au tableau après un changement de vue
+        (F1/F2/F3) — au cas où le focus aurait dérivé sur le Select "Filtre
+        adju." de la sidebar (clic souris dessus) entre-temps, ce qui aurait
+        sinon fait passer les flèches haut/bas dans le menu déroulant du
+        Select plutôt que dans les lignes du tableau."""
+        self.query_one("#main-table", DataTable).focus()
 
     def action_toggle_period(self) -> None:
         """Tab : bascule le navigateur global entre mode Jour et mode
@@ -405,8 +439,7 @@ class DeskApp(App):
         # affichait la même liste complète quoi qu'on bascule/déplace — on le
         # décoche donc ici (voir aussi _nav_step / action_nav_reset_today).
         self.show_all[self.current_view] = False
-        self.refresh_data()
-        self.query_one(CommandBar).clear()
+        self.refresh_data(reset_cursor=True)
 
     def action_next_page(self) -> None:
         self._nav_step(1)
@@ -427,7 +460,7 @@ class DeskApp(App):
         # identique, ce qui donnait l'impression que "la flèche ne marche
         # pas".
         self.show_all[self.current_view] = False
-        self.refresh_data()
+        self.refresh_data(reset_cursor=True)
 
     def action_toggle_show_all(self) -> None:
         """Case "Tout" du bandeau (cliquable à la souris) : bascule
@@ -436,24 +469,28 @@ class DeskApp(App):
         — décocher revient exactement là où on en était."""
         view = self.current_view
         self.show_all[view] = not self.show_all[view]
-        self.refresh_data()
+        self.refresh_data(reset_cursor=True)
 
     def action_nav_reset_today(self) -> None:
         """Clic sur le libellé du navigateur (ex. "AUJOURD'HUI") : revient
         sur aujourd'hui sans changer de mode Jour/Semaine."""
         self.nav_anchor = date.today()
         self.show_all[self.current_view] = False
+        self.refresh_data(reset_cursor=True)
+
+    def action_refresh_now(self) -> None:
+        """F7 "Actualiser" (round 23) : force un rafraîchissement immédiat de
+        l'affichage — get_occurrences()/compute_status() recalculent déjà les
+        statuts à partir de l'heure actuelle à chaque appel (comme au
+        lancement, voir le docstring en tête de fichier), donc c'est
+        exactement le même calcul que celui du timer périodique (30s) ou
+        d'un relancement de l'app, juste déclenché à la demande plutôt que
+        d'attendre — utile pour voir tout de suite une tâche repasser en
+        rouge à l'heure convenue plutôt que d'attendre jusqu'à 30s. Curseur
+        préservé (pas une navigation, juste un rafraîchissement du même
+        contenu)."""
         self.refresh_data()
-
-    def action_focus_command(self) -> None:
-        self.query_one(CommandBar).focus_input()
-
-    def action_clear_command(self) -> None:
-        self.query_one(CommandBar).clear()
-        self.query_one("#main-table", DataTable).focus()
-
-    def action_show_help(self) -> None:
-        self.push_screen(HelpModal())
+        self.notify("Affichage actualisé.")
 
     # ------------------------------------------------------------------
     # Actions F4 / F5 / F6 sur la ligne sélectionnée
@@ -486,6 +523,12 @@ class DeskApp(App):
             self.bell()
 
     def action_mark_done(self) -> None:
+        """F5 : agit sur la ligne sous le curseur (haut/bas natif du
+        DataTable, curseur désormais préservé entre deux refresh_data() —
+        voir son docstring), pas toujours la première ligne comme avant
+        round 23. Round 23 : bascule dans les deux sens (comme le bouton
+        Fait/Pas fait de TaskDetailModal depuis le round 9) — une tâche déjà
+        faite repasse "pas fait" au lieu de rester bloquée sur "fait"."""
         if self.current_view != "tasks":
             self.bell()
             return
@@ -494,8 +537,13 @@ class DeskApp(App):
             self.bell()
             return
         occ = self._task_occurrences[row]
-        task_service.mark_done(occ.task_id, task_service.parse_date(occ.date))
-        self.notify(f"« {occ.name} » marquée faite.")
+        occurrence_date = task_service.parse_date(occ.date)
+        if occ.status == STATUS_DONE:
+            task_service.mark_undone(occ.task_id, occurrence_date)
+            self.notify(f"« {occ.name} » repassée pas fait.")
+        else:
+            task_service.mark_done(occ.task_id, occurrence_date)
+            self.notify(f"« {occ.name} » marquée faite.")
         self.refresh_data()
 
     def action_delete_item(self) -> None:
@@ -610,7 +658,7 @@ class DeskApp(App):
                 "vérifie la date saisie si tu t'attendais à la voir.",
                 severity="warning",
             )
-        self.refresh_data()
+        self.refresh_data(reset_cursor=True)
 
     def _first_occurrence_date(self, task_id: str) -> Optional[date]:
         """Date à afficher pour qu'une tâche qu'on vient d'ajouter soit
@@ -656,105 +704,39 @@ class DeskApp(App):
                 self.notify(f"Adjudication {new_auction.country} du {new_auction.date} ajoutée.")
             for w in warnings:
                 self.notify(w, severity="warning")
-            self.refresh_data()
+            self.refresh_data(reset_cursor=True)
         except auction_service.AuctionServiceError as exc:
             self.notify(str(exc), severity="error")
 
-    # ------------------------------------------------------------------
-    # Barre de commande façon <GO> (section 5.3)
-    # ------------------------------------------------------------------
-
-    def on_command_bar_submitted(self, message: CommandBar.Submitted) -> None:
-        self._execute_command(message.command)
-
-    def _execute_command(self, raw: str) -> None:
-        parts = raw.split()
-        if not parts:
-            return
-        verb = parts[0].upper()
-
-        if verb == "TASK":
-            self._handle_task_command(parts[1:])
-        elif verb == "AUCTION":
-            self._handle_auction_command(parts[1:])
-        elif verb == "NOTIF":
-            self._handle_notif_command(parts[1:])
-        elif verb == "WEEK":
-            # Navigateur global : s'applique à la vue actuelle (Tâches ou
-            # Adjudications), pas seulement aux Tâches.
-            self.nav_mode = "week"
-            self.refresh_data()
-        elif verb == "TODAY":
-            self.nav_mode = "day"
-            self.nav_anchor = date.today()
-            self.refresh_data()
-        elif verb == "TOMORROW":
-            self.nav_mode = "day"
-            self.nav_anchor = date.today() + timedelta(days=1)
-            self.refresh_data()
-        else:
-            self.notify(f"Commande inconnue : {raw!r}", severity="error")
-
-    def _handle_task_command(self, args: list[str]) -> None:
-        sub = args[0].upper() if args else ""
-        if sub == "ADD":
-            self.action_view_tasks()
-            self.push_screen(TaskFormModal(), self._on_task_form_result)
-            return
-        if sub in ("DONE", "DEL") and len(args) > 1 and args[1].isdigit():
-            n = int(args[1])
-            if self.current_view != "tasks" or not (1 <= n <= len(self._task_occurrences)):
-                self.notify("Numéro de tâche invalide pour la vue actuelle.", severity="error")
-                return
-            occ = self._task_occurrences[n - 1]
-            if sub == "DONE":
-                task_service.mark_done(occ.task_id, task_service.parse_date(occ.date))
-                self.refresh_data()
-            else:
-                if occ.is_recurring:
-                    self.push_screen(DeleteScopeModal(occ.name), lambda scope, o=occ: self._delete_task(o, scope))
-                else:
-                    self._delete_task(occ, "series")
-            return
-        self.notify("Commande TASK inconnue. Essaie : TASK ADD / TASK DONE 3 / TASK DEL 3", severity="error")
-
-    def _handle_auction_command(self, args: list[str]) -> None:
-        sub = args[0].upper() if args else ""
-        if sub == "ADD":
-            self.action_view_auctions()
-            self.push_screen(AuctionFormModal(), self._on_auction_form_result)
-        elif sub == "LIST":
-            self.action_view_auctions()
-        else:
-            self.notify("Commande AUCTION inconnue. Essaie : AUCTION ADD / AUCTION LIST", severity="error")
-
-    def _handle_notif_command(self, args: list[str]) -> None:
-        """Round 22 : "NOTIF TEST" envoie une notification système de test
-        immédiate (hors déduplication), pour vérifier que les notifications
-        fonctionnent sur le poste — moyen discret demandé par Augustin,
-        plutôt qu'un bouton dédié dans l'interface. Journalisée comme les
-        autres (kind="test"), donc visible tout de suite dans la page Log."""
-        sub = args[0].upper() if args else ""
-        if sub == "TEST":
-            self._send_test_notification()
-        else:
-            self.notify("Commande NOTIF inconnue. Essaie : NOTIF TEST", severity="error")
-
     def action_notif_test(self) -> None:
-        """F10 : même envoi que la commande "NOTIF TEST", en raccourci direct
-        — ajouté après que la barre de commande ("/") s'est révélée peu
-        fiable sur le poste d'Augustin, pour garder un moyen de tester les
-        notifications qui ne dépende pas de "/"."""
+        """F8 "Notif" (round 23 : déplacé de F10, la barre de commande "NOTIF
+        TEST" qui appelait la même chose ayant été retirée en même temps) —
+        envoie une notification de test immédiate."""
         self._send_test_notification()
 
     def _send_test_notification(self) -> None:
+        """Round 22 (suite 3) : ajout d'un diagnostic dans le toast *interne*
+        de l'app (celui-ci, contrairement au toast système, s'affiche
+        toujours, même si aucun mécanisme système ne fonctionne) — pour
+        pouvoir dire précisément quel mécanisme a été tenté et pourquoi il a
+        échoué, sans avoir besoin d'accéder à la console (invisible pendant
+        qu'une TUI Textual tourne, elle occupe l'écran alternatif du
+        terminal). Repose sur `notifier.last_attempt_log`, rempli à chaque
+        appel de `notifier.send_notification()`."""
         ok = notification_service.send_test_notification()
+        used = ", ".join(
+            f"{mechanism}"
+            if error is None
+            else f"{mechanism} → échec ({error})"
+            for mechanism, error in notifier.last_attempt_log
+        ) or "aucun mécanisme disponible"
         if ok:
-            self.notify("Notification de test envoyée.")
+            # Le mécanisme qui a réussi est toujours le dernier de la liste ;
+            # les précédents (le cas échéant) ont échoué avant lui.
+            self.notify(f"Notification de test envoyée. Essais : {used}.")
         else:
             self.notify(
-                "Aucun mécanisme de notification système disponible sur ce poste "
-                "(repli console — voir le terminal).",
+                f"Notification système non envoyée (repli console). Essais : {used}.",
                 severity="warning",
             )
         if self.current_view == "log":

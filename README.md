@@ -57,10 +57,10 @@ immédiat à chaque lancement. Trois types de notifications :
 - **récapitulatif général**, deux fois par jour (8h45 et 15h00,
   `constants.GENERAL_NOTIFICATION_TIMES`) : nombre de tâches du jour pas
   encore faites ("X tâches restantes aujourd'hui") ;
-- **test**, à la demande — `F10`, ou commande `NOTIF TEST` dans la barre de
-  commande — pratique pour vérifier que les notifications système
-  fonctionnent sur le poste, sans attendre qu'une vraie tâche devienne
-  urgente.
+- **test**, à la demande — `F8` (round 23 : déplacé de `F10`, la barre de
+  commande ayant été retirée) — pratique pour vérifier que les notifications
+  système fonctionnent sur le poste, sans attendre qu'une vraie tâche
+  devienne urgente.
 
 Mécanisme d'envoi (`notifier.py`) :
 
@@ -99,8 +99,12 @@ desk_cli/
 ├── tui/
 │   ├── app.py            # interface (Textual)
 │   ├── theme.tcss          # palette ambre/noir façon Bloomberg
-│   ├── screens/            # formulaires modaux, confirmations, aide, log
-│   └── widgets/             # bandeau horloge, barre de commande
+│   ├── screens/            # formulaires modaux, confirmations, log
+│   │                         # (help.py : code mort depuis le round 23, F1
+│   │                         # ne pointe plus dessus — laissé sur le disque)
+│   └── widgets/             # bandeau horloge
+│                             # (command_bar.py : code mort depuis le round 23,
+│                             # la barre de commande "/" a été retirée — idem)
 ├── data/                    # tasks.json, auctions.json, notified.json, notifications_log.json (créés au premier lancement)
 └── requirements.txt
 ```
@@ -112,29 +116,39 @@ aucune ligne.
 
 ## Raccourcis
 
+Depuis le round 23, plus de barre de commande (`/`) ni d'aide (`F1`) — tout
+ce qu'elles apportaient a un équivalent clavier direct listé ci-dessous.
+Navigation ligne par ligne dans les tableaux (Tâches/Adjudications) avec les
+flèches ↑ / ↓ (natif Textual) : `F5`/`F6` agissent sur la ligne où se trouve
+le curseur, pas toujours la première.
+
 | Touche | Action |
 |---|---|
-| F1 | Aide / légende des couleurs |
-| F2 / F3 / F7 | Vue Tâches / Adjudications / Log (notifications du jour) |
+| F1 / F2 / F3 | Vue Tâches / Adjudications / Log (notifications du jour) |
+| ↑ / ↓ | Déplace le curseur ligne par ligne dans le tableau (Tâches/Adjudications) |
 | F4 | Ajouter (ou modifier si une adjudication est sélectionnée) |
-| F5 | Marquer fait |
-| F6 | Supprimer |
+| F5 | Bascule fait / pas fait sur la ligne sélectionnée (tâches) — dans les deux sens |
+| F6 | Supprimer la ligne sélectionnée |
+| F7 | Actualise l'affichage immédiatement (sans attendre le rafraîchissement automatique toutes les 30s) |
+| F8 | Envoie une notification de test |
 | Tab (ou clic sur JOUR/SEMAINE) | Bascule le navigateur Jour / Semaine (bandeau, global Tâches/Adjudications) |
-| ◂ / ▸ (flèches, PgUp/PgDn, ou clic) | Jour ou semaine précédent(e) / suivant(e) |
+| ◂ / ▸ (flèches gauche/droite, PgUp/PgDn, ou clic) | Jour ou semaine précédent(e) / suivant(e) |
 | Clic sur la date du navigateur | Revient à aujourd'hui |
 | Clic sur ☐ Tout (bandeau) | Affiche toute la liste de la vue courante, sans filtre de date |
 | Entrée | Actions rapides sur la ligne sélectionnée |
-| / | Focus la barre de commande (`TASK ADD`, `TASK DONE 3`, `AUCTION LIST`, `WEEK`, `NOTIF TEST`, ...) |
-| F10 | Envoie une notification de test (équivalent à `NOTIF TEST`, sans passer par la barre de commande) |
-| Échap | Ferme un modal / vide la barre de commande |
+| Échap | Ferme un modal |
 | F9 | Quitter |
 
 ## Colonnes
 
-Tâches : N°, Heure, Tâche, Détails, Statut, **Note**.
-Adjudications : N°, Pays, Date, Heure, Type, Instrument, Maturité, Volume (M),
+Tâches : N°, **Date**, Heure, Tâche, Détails, Statut, **Note**.
+Adjudications : N°, **Date**, Heure, Pays, Type, Maturité, Volume (M),
 NCO, **Note**.
 Log : N°, Heure, Type (Urgent / Général / Test), Titre, Message.
+
+La colonne **Date** (format `JJ/MM`, sans année — round 23) aide à se
+repérer quand le navigateur est en mode Semaine ou sur ☐ Tout (plusieurs
+jours affichés à la fois dans la même liste).
 
 La Note est un champ libre optionnel, disponible dans les deux formulaires
 d'ajout/édition.

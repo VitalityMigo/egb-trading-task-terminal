@@ -20,9 +20,13 @@ Colonnes et largeurs alignées sur la même logique que la vue Tâches
 from __future__ import annotations
 
 from constants import AUCTION_TYPES, COUNTRIES
-from tui.screens.dashboard import N_COLUMN_WIDTH, TIME_COLUMN_WIDTH
+from tui.screens.dashboard import DATE_COLUMN_WIDTH, N_COLUMN_WIDTH, TIME_COLUMN_WIDTH
+from tui.screens.dashboard import format_date_short as _format_date_short
 
-AUCTION_COLUMNS = ("N°", "Heure", "Pays", "Type", "Maturité", "Volume (M)", "NCO", "Note")
+# Round 23 : "Date" ajoutée en 2e position (après "N°"), symétrique à la vue
+# Tâches — même motivation (repérage en mode Semaine/"Tout") et même colonne
+# réutilisée (DATE_COLUMN_WIDTH, format "JJ/MM") plutôt que redéfinie.
+AUCTION_COLUMNS = ("N°", "Date", "Heure", "Pays", "Type", "Maturité", "Volume (M)", "NCO", "Note")
 
 # Largeur de contenu (hors cell_padding) donnée à la colonne Note — voir la
 # note équivalente dans tui/screens/dashboard.py (même logique, appliquée ici
@@ -45,6 +49,7 @@ NCO_COLUMN_WIDTH = 3
 
 AUCTION_COLUMN_WIDTHS = {
     "N°": N_COLUMN_WIDTH,
+    "Date": DATE_COLUMN_WIDTH,
     "Heure": TIME_COLUMN_WIDTH,
     "Pays": PAYS_COLUMN_WIDTH,
     "Type": TYPE_COLUMN_WIDTH,
@@ -71,6 +76,7 @@ def build_auction_row(index: int, auction) -> tuple[str, ...]:
     volume = f"{auction.volume:g}" if auction.volume is not None else "—"
     return (
         str(index),
+        _format_date_short(auction.date),
         # "-" et non "—" : même convention que la colonne Heure de la vue
         # Tâches (occurrence sans heure, round 12) — c'est le même champ,
         # affiché au même endroit.

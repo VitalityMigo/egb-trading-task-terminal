@@ -14,10 +14,11 @@ from __future__ import annotations
 TASK_CATALOG: list[str] = [
     "Bond Definition",
     "Bond Historisation",
-    "Inflation Historisation",
     "NCO Calculation",
     "NCO Estimate",
     "NCO Historisation",
+    "Infla Historisation",
+    "SSA Historisation",
     "Risk 16h30",
     "Risk 17h30",
     "Swap File",
@@ -25,10 +26,9 @@ TASK_CATALOG: list[str] = [
     "Volume HREF",
     "MTS Quotation",
     "Italian Fees",
-    "Fees italien Historisation",
-    "Pre-Auction Bills Report",
     "Pre-Bills Report",
     "SSA Chain Report",
+    "Weekly Auction Recap",
     "Weekly Macro Recap",
 ]
 
@@ -42,8 +42,8 @@ COUNTRIES: list[str] = [
     "Espagne",
     "Portugal",
     "Belgique",
-    "Finland",
-    "Slovenia",
+    "Finlande",
+    "Slovenie",
     "UE",
 ]
 
@@ -58,8 +58,8 @@ COUNTRY_CODES: dict[str, str] = {
     "Espagne": "ES",
     "Portugal": "PT",
     "Belgique": "BE",
-    "Finland": "FI",
-    "Slovenia": "SLV",
+    "Finlande": "FI",
+    "Slovenie": "SLV",
     "UE": "UE",
 }
 
